@@ -17,11 +17,11 @@ class slice {
   	slice(const std::string& s) : data(s.data()), size(s.size()) {}
 
   	// Create a slice that refers to s[0,strlen(s)-1]
-  	slice(const char* s) : data_(s), size(strlen(s)) {}
+  	slice(const char* s) : data(s), size(strlen(s)) {}
 	
 	private:
 		const char* data;
-		size_t len;
+		size_t size;
 }; // class slice 
 
 } // namespace nmfs 

@@ -4,6 +4,7 @@
 
 #include "fuse_ops.hpp"
 #include "const.hpp"
+#include "slice.h"
 
 void *nmfs::fuse_operations::init(struct fuse_conn_info *info, struct fuse_config *config) {
 	int err;
