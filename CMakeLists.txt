@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FUSE3 REQUIRED fuse3)
 
-add_executable(nmfs main.cpp)
+add_executable(nmfs main.cpp kv_backends/kv_backend.hpp memory_slices/slice.hpp kv_backends/rados_backend.cpp kv_backends/rados_backend.hpp memory_slices/owner_slice.hpp memory_slices/borrower_slice.hpp)
 target_link_libraries(nmfs ${FUSE3_LIBRARIES})
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS})
 target_compile_options(nmfs PUBLIC ${FUSE3_CFLAGS_OTHER})
