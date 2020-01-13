@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <stdexcept>
-#include <memory>
+
 
 #include "rados_backend.hpp"
 
@@ -22,11 +22,7 @@ nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key) 
     }
 
 
-    //nmfs::owner_slice *t = new nmfs::owner_slice(object_size);
     nmfs::owner_slice slice_buffer(object_size);
-
-    //nmfs::slice& test = slice_buffer;
-    //nmfs::slice *test2 = new nmfs::owner_slice(10);
 
     return slice_buffer;
 }
