@@ -15,7 +15,7 @@ namespace nmfs {
  */
 class borrower_slice: public slice {
 public:
-    constexpr borrower_slice(byte* memory, size_t size);
+    constexpr borrower_slice(void* memory, size_t size);
     template<typename char_type>
     constexpr borrower_slice(std::basic_string<char_type>& string);
     template<typename type>
@@ -30,11 +30,11 @@ protected:
     void* memory;
 };
 
-constexpr borrower_slice::borrower_slice(byte* memory, size_t size): slice(size, size), memory(memory) {
+constexpr borrower_slice::borrower_slice(void* memory, size_t size): slice(size, size), memory(memory) {
 }
 
 template<typename char_type>
-constexpr borrower_slice::borrower_slice(std::basic_string<char_type>& string): slice(string.capacity() * sizeof(char_type), string.size() * sizeof(char_type)), memory(string.c_str()) {
+constexpr borrower_slice::borrower_slice(std::basic_string<char_type>& string): slice(string.capacity() * sizeof(char_type), string.size() * sizeof(char_type)), memory(const_cast<char_type*>(string.c_str())) {
 }
 
 template<typename type>
