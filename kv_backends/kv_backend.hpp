@@ -1,5 +1,5 @@
-#ifndef NMFS_KV_BACKEND_HPP
-#define NMFS_KV_BACKEND_HPP
+#ifndef NMFS_KV_BACKENDS_KV_BACKEND_HPP
+#define NMFS_KV_BACKENDS_KV_BACKEND_HPP
 
 #include "../memory_slices/slice.hpp"
 #include "../memory_slices/owner_slice.hpp"
@@ -15,4 +15,4 @@ public:
 };
 }
 
-#endif //NMFS_KV_BACKEND_HPP
+#endif //NMFS_KV_BACKENDS_KV_BACKEND_HPP

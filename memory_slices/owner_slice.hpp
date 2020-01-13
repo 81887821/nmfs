@@ -1,5 +1,5 @@
-#ifndef NMFS_OWNER_SLICE_HPP
-#define NMFS_OWNER_SLICE_HPP
+#ifndef NMFS_MEMORY_SLICES_OWNER_SLICE_HPP
+#define NMFS_MEMORY_SLICES_OWNER_SLICE_HPP
 
 #include <memory>
 #include "slice.hpp"

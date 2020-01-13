@@ -1,5 +1,5 @@
-#ifndef NMFS_RADOS_BACKEND_HPP
-#define NMFS_RADOS_BACKEND_HPP
+#ifndef NMFS_KV_BACKENDS_RADOS_BACKEND_HPP
+#define NMFS_KV_BACKENDS_RADOS_BACKEND_HPP
 
 #include "kv_backend.hpp"
 
@@ -13,4 +13,4 @@ class rados_backend: public kv_backend {
 };
 }
 
-#endif //NMFS_RADOS_BACKEND_HPP
+#endif //NMFS_KV_BACKENDS_RADOS_BACKEND_HPP

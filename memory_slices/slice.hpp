@@ -1,5 +1,5 @@
-#ifndef NMFS_SLICE_HPP
-#define NMFS_SLICE_HPP
+#ifndef NMFS_MEMORY_SLICES_SLICE_HPP
+#define NMFS_MEMORY_SLICES_SLICE_HPP
 
 #include <stdexcept>
 #include <cstdint>

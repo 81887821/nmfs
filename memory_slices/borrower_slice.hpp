@@ -1,5 +1,5 @@
-#ifndef NMFS_BORROWER_SLICE_HPP
-#define NMFS_BORROWER_SLICE_HPP
+#ifndef NMFS_MEMORY_SLICES_BORROWER_SLICE_HPP
+#define NMFS_MEMORY_SLICES_BORROWER_SLICE_HPP
 
 #include <string>
 #include <vector>
