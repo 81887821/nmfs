@@ -31,12 +31,10 @@ protected:
 };
 
 constexpr borrower_slice::borrower_slice(byte* memory, size_t size): slice(size, size), memory(memory) {
-
 }
 
 template<typename char_type>
 constexpr borrower_slice::borrower_slice(std::basic_string<char_type>& string): slice(string.capacity() * sizeof(char_type), string.size() * sizeof(char_type)), memory(string.c_str()) {
-
 }
 
 template<typename type>

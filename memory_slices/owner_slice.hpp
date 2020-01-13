@@ -13,7 +13,6 @@ namespace nmfs {
  */
 class owner_slice: public slice {
 public:
-    int a;
     explicit owner_slice(size_t size);
     explicit owner_slice(size_t capacity, size_t size);
 

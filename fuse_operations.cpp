@@ -2,13 +2,11 @@
 #include <string>
 #include <rados/librados.hpp>
 
-
 #include "fuse_operations.hpp"
 #include "memory_slices/slice.hpp"
-
 #include "constants.hpp"
 
-void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_config *config) {
+void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_config* config) {
     int err;
 #ifdef DEBUG
     std::cout << "__function__call : init" << std::endl;
