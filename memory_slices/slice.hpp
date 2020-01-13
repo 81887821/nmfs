@@ -3,11 +3,9 @@
 
 #include <stdexcept>
 #include <cstdint>
+#include "../primitive_types.hpp"
 
 namespace nmfs {
-
-typedef char byte;
-static_assert(sizeof(byte) == 1);
 
 /**
  * Abstract base class for memory slice
