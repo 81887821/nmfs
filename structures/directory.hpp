@@ -19,7 +19,7 @@ public:
     inline void sync() const;
 
 private:
-    metadata& metadata;
+    metadata& directory_metadata;
     std::set<std::string> files;
     size_t size;
 
@@ -27,7 +27,7 @@ private:
     void parse(std::unique_ptr<byte[]> buffer);
 };
 
-inline directory::directory(nmfs::structures::metadata& metadata): metadata(metadata), size(sizeof(on_disk_size_type)) {
+inline directory::directory(nmfs::structures::metadata& metadata): directory_metadata(metadata), size(sizeof(on_disk_size_type)) {
     if (metadata.size > 0) {
         std::unique_ptr<byte[]> buffer = std::make_unique<byte[]>(metadata.size);
 
@@ -50,10 +50,10 @@ inline void directory::remove_file(const std::string& file_name) {
 }
 
 inline void directory::sync() const {
-    if (size < metadata.size) {
-        metadata.truncate(size);
+    if (size < directory_metadata.size) {
+        directory_metadata.truncate(size);
     }
-    metadata.write(serialize().get(), size, 0);
+    directory_metadata.write(serialize().get(), size, 0);
 }
 
 }
