@@ -2,9 +2,6 @@
   <code_scheme name="Project" version="173">
     <Objective-C>
       <option name="INDENT_NAMESPACE_MEMBERS" value="0" />
-      <option name="CLASS_CONSTRUCTOR_INIT_LIST_NEW_LINE_BEFORE_COLON" value="0" />
-      <option name="CLASS_CONSTRUCTOR_INIT_LIST_NEW_LINE_AFTER_COLON" value="2" />
-      <option name="SUPERCLASS_LIST_BEFORE_COLON" value="0" />
       <option name="SPACE_BEFORE_SUPERCLASS_COLON" value="false" />
       <option name="SPACE_BEFORE_INIT_LIST_COLON" value="false" />
       <option name="SPACE_BEFORE_POINTER_IN_DECLARATION" value="false" />
@@ -39,7 +36,7 @@
       <option name="BLANK_LINES_AROUND_METHOD_IN_INTERFACE" value="0" />
       <option name="SPACE_BEFORE_QUEST" value="false" />
       <indentOptions>
-        <option name="CONTINUATION_INDENT_SIZE" value="0" />
+        <option name="CONTINUATION_INDENT_SIZE" value="4" />
       </indentOptions>
     </codeStyleSettings>
   </code_scheme>
