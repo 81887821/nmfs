@@ -4,12 +4,12 @@
 #include <string>
 #include <stdexcept>
 
-#define PATH_DELIMITER '/'
-
 namespace nmfs {
 
-std::string get_parent_directory(std::string& path);
-std::string get_filename(std::string& path);
+constexpr char path_delimiter = '/';
+
+std::string get_parent_directory(const std::string& path);
+std::string get_filename(const std::string& path);
 
 }
 

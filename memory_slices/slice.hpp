@@ -47,7 +47,6 @@ constexpr slice::slice(size_t size): memory_capacity(size), data_size(size) {
 constexpr slice::slice(size_t capacity, size_t size): memory_capacity(capacity), data_size(size) {
 }
 
-
 }
 
 #endif //NMFS_SLICE_HPP
