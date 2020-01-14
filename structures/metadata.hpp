@@ -29,13 +29,14 @@ public:
     metadata(super_object& super, std::string path, fuse_context* fuse_context, mode_t mode);
     metadata(super_object& super, std::string path, const on_disk::metadata& on_disk_structure);
 
-    ssize_t write(const byte* buffer, size_t size, off_t offset);
-    ssize_t read(byte* buffer, size_t size, off_t offset);
-    void truncate(off_t length);
+    ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
+    ssize_t read(byte* buffer, size_t size_to_read, off_t offset);
+    void truncate(off_t new_size);
     void sync_metadata();
 
 private:
     [[nodiscard]] constexpr on_disk::metadata to_on_disk_structure() const;
+    void remove_data_objects(uint32_t index_from, uint32_t index_to);
 };
 
 constexpr on_disk::metadata metadata::to_on_disk_structure() const {

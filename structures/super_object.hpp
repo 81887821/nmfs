@@ -9,6 +9,8 @@ using namespace nmfs::kv_backends;
 
 class super_object {
 public:
+    const size_t maximum_object_size = 64 * 1024;
+
     std::unique_ptr<kv_backend> backend;
 };
 
