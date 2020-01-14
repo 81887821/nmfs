@@ -4,7 +4,7 @@ std::string nmfs::get_parent_directory(std::string &path) {
     if (path.length() == 0) {
         throw std::runtime_error("Invalid Path: path.length() == 0");
     } else {
-        for(size_t i; i > 0; i--){
+        for(size_t i = path.length() - 1; i > 0; i--){
             if(path[i] == PATH_DELIMITER){
                 return path.substr(0, i);
             }
@@ -22,7 +22,7 @@ std::string nmfs::get_filename(std::string &path) {
     if (path.length() == 0) {
         throw std::runtime_error("Invalid Path: path.length() == 0");
     } else {
-        for(size_t i; i > 0; i--){
+        for(size_t i = path.length() - 1; i > 0; i--){
             if(path[i] == PATH_DELIMITER){
                 return path.substr(i + 1, path.length());
             }
