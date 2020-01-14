@@ -12,8 +12,8 @@ namespace nmfs {
  */
 class slice {
 public:
-    [[nodiscard]] virtual inline byte* data() = 0;
-    [[nodiscard]] virtual inline const byte* data() const = 0;
+    [[nodiscard]] virtual byte* data() = 0;
+    [[nodiscard]] virtual const byte* data() const = 0;
     [[nodiscard]] constexpr size_t capacity() const;
     [[nodiscard]] constexpr size_t size() const;
     constexpr void set_size(size_t new_size);
