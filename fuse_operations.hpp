@@ -1,10 +1,8 @@
 #ifndef NMFS_FUSE_OPERATIONS_HPP
 #define NMFS_FUSE_OPERATIONS_HPP
 
-#define FUSE_USE_VERSION 31
-
-#include <fuse.h>
 #include <rados/librados.hpp>
+#include "fuse.hpp"
 
 namespace nmfs::fuse_operations {
 

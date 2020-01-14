@@ -4,8 +4,8 @@
 #include <sys/stat.h>
 #include <cstdint>
 #include <cstdlib>
-#include <fuse.h>
 #include <string>
+#include "../fuse.hpp"
 #include "../primitive_types.hpp"
 #include "super_object.hpp"
 #include "on_disk/metadata.hpp"
