@@ -12,7 +12,8 @@ metadata::metadata(super_object& super, std::string path, fuse_context* fuse_con
       owner(fuse_context->uid),
       group(fuse_context->gid),
       mode(mode),
-      size(0) {
+      size(0),
+      dirty(true) {
     if (timespec_get(&atime, TIME_UTC) != TIME_UTC) {
         throw std::runtime_error("timespec_get failed.");
     }

@@ -52,6 +52,8 @@ constexpr on_disk::metadata metadata::to_on_disk_structure() const {
     };
 }
 
+
+
 }
 
 #endif //NMFS_STRUCTURES_METADATA_HPP

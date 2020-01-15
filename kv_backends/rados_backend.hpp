@@ -11,7 +11,7 @@ class rados_backend: public kv_backend {
     void get(const slice& key, off_t offset, size_t length, slice& value); // partial read
 
     void put(const slice& key, const slice& value) final; // fully write
-    void put(const slice& key, off_t offset, size_t length, const slice& value); // partial write
+    void put(const slice& key, off_t offset, const slice& value); // partial write
 
     [[nodiscard]] bool exist(const slice& key) final;
     void remove(const slice& key) final;

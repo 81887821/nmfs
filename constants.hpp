@@ -3,6 +3,8 @@
 
 #include <rados/librados.hpp>
 
+
+
 namespace nmfs {
 
 // librados handler variables
@@ -14,6 +16,13 @@ static uint64_t flags;
 //librados io context
 static librados::IoCtx io_ctx;
 const char pool_name[] = "cephfs_data";
+
+/*
+ * mode 1 : full path
+ * mode 2 : UNIX-like
+ * mode 3 : custom
+ */
+const uint8_t key_mode = 1;
 
 }
 

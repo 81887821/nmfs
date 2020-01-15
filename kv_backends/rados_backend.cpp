@@ -26,7 +26,7 @@ nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key) 
     ret = io_ctx.read(key.data(), read_buffer, object_size, 0);
     if (ret < 0) {
         std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.data() << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("rados_backend::get : No such file or directory");
     } else {
         std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
     }
@@ -101,12 +101,12 @@ void nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, const nmfs::s
 
 }
 
-void nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, off_t offset, size_t length, const nmfs::slice& value) { // partial write
+void nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, off_t offset, const nmfs::slice& value) { // partial write
     librados::bufferlist write_buffer;
     int ret;
 
     write_buffer.append(value.data());
-    ret = io_ctx.write(key.data(), write_buffer, length, offset);
+    ret = io_ctx.write(key.data(), write_buffer, write_buffer.length(), offset);
     if(ret < 0){
         std::cerr << "rados_backend::put : Cannot perform partial write in object on "<< key.data() << std::endl;
         exit(EXIT_FAILURE);
