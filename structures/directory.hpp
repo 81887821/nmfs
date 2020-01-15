@@ -54,6 +54,7 @@ inline void directory::sync() const {
         directory_metadata.truncate(size);
     }
     directory_metadata.write(serialize().get(), size, 0);
+    directory_metadata.sync();
 }
 
 }

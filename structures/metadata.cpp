@@ -93,12 +93,15 @@ void metadata::truncate(off_t new_size) {
     }
 }
 
-void metadata::sync_metadata() {
-    auto key = borrower_slice(path);
-    on_disk::metadata on_disk_structure = to_on_disk_structure();
-    auto value = borrower_slice(&on_disk_structure, sizeof(on_disk_structure));
+void metadata::sync() {
+    if (dirty) {
+        auto key = borrower_slice(path);
+        on_disk::metadata on_disk_structure = to_on_disk_structure();
+        auto value = borrower_slice(&on_disk_structure, sizeof(on_disk_structure));
 
-    context.backend->put(key, value);
+        context.backend->put(key, value);
+        dirty  = false;
+    }
 }
 
 void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
