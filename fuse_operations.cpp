@@ -20,7 +20,6 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
     std::cout << '\n' << "__function__call : init" << '\n';
 #endif
 
-
     // Initialize the cluster handle with the "ceph" cluster name and "client.admin" user
     err = cluster.init2(user_name, cluster_name, flags);
     if (err < 0) {

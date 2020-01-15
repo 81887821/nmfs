@@ -52,3 +52,13 @@ std::unique_ptr<nmfs::slice> make_key(const char* path, uint8_t key_mode) {
         return nullptr;
     }
 }
+
+std::string nmfs::generate_uuid(){
+    char uuid[37];
+    uuid_t generated_uuid;
+
+    uuid_generate_random(generated_uuid);
+    uuid_unparse(generated_uuid, uuid);
+
+    return std::string(uuid);
+}
