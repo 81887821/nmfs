@@ -13,13 +13,15 @@
 #include "structures/metadata.hpp"
 #include "structures/super_object.hpp"
 
+using namespace nmfs;
+
 void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_config* config) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : init" << '\n';
 #endif
     auto connect_information = kv_backends::rados_backend::connect_information {};
     auto backend = std::make_unique<kv_backends::rados_backend>(connect_information);
-    auto super_object = new nmfs::structures::super_object(std::move(backend));
+    auto super_object = new structures::super_object(std::move(backend));
 
     // initialize memory cache and mapper
     nmfs::next_file_handler = 1;
@@ -32,7 +34,7 @@ void nmfs::fuse_operations::destroy(void* private_data) {
 #ifdef DEBUG
     std::cout << "__function__call : delete" << std::endl;
 #endif
-    auto super_object = reinterpret_cast<nmfs::structures::super_object*>(private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(private_data);
     delete super_object;
 #ifdef DEBUG
     std::cout << "Terminate nmFS successfully." << std::endl;
@@ -44,7 +46,7 @@ int nmfs::fuse_operations::flush(const char* path, struct fuse_file_info* file_i
 int nmfs::fuse_operations::fsync(const char* path, int data_sync, struct fuse_file_info* file_info);
 int nmfs::fuse_operations::fsyncdir(const char* path, int data_sync, struct fuse_file_info* file_info);
 
-int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_file_info* file_info){
+int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_file_info* file_info) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : create" << '\n';
 #endif
@@ -56,9 +58,9 @@ int getattr(const char* path, struct stat* stat, struct fuse_file_info* file_inf
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : getattr" << '\n';
 #endif
-    fuse_context *fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<nmfs::structures::super_object*>(fuse_get_context()->private_data);
-    auto& metadata = file_info? *reinterpret_cast<nmfs::structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+    fuse_context* fuse_context = fuse_get_context();
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
     std::memset(stat, 0, sizeof(struct stat));
     stat->st_nlink = metadata.link_count;
@@ -82,16 +84,17 @@ int open(const char* path, struct fuse_file_info* file_info) {
     std::cout << '\n' << "__function__call : open" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto& super_object = *static_cast<nmfs::structures::super_object*>(fuse_context->private_data);
+    auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        nmfs::structures::metadata& metadata = super_object.cache.open(path);
+        structures::metadata& metadata = super_object.cache.open(path);
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
         return 0;
     } catch (std::runtime_error& e) {
         return nmfs::fuse_operations::create(path, 0644 | S_IFREG, file_info);
     }
 }
+
 int nmfs::fuse_operations::mkdir(const char* path, mode_t mode);
 int nmfs::fuse_operations::rmdir(const char* path);
 int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t size, off_t offset, struct fuse_file_info* file_info);
@@ -109,4 +112,3 @@ int nmfs::fuse_operations::access(const char* path, int mask);
 int nmfs::fuse_operations::read_buf(const char* path, struct fuse_bufvec** buffer, size_t size, off_t offset, struct fuse_file_info* file_info);
 int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file_info);
 int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* file_info);
-

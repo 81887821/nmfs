@@ -2,6 +2,7 @@
   <code_scheme name="Project" version="173">
     <Objective-C>
       <option name="INDENT_NAMESPACE_MEMBERS" value="0" />
+      <option name="SPACE_WITHIN_TEMPLATE_DOUBLE_GT" value="false" />
       <option name="SPACE_BEFORE_SUPERCLASS_COLON" value="false" />
       <option name="SPACE_BEFORE_INIT_LIST_COLON" value="false" />
       <option name="SPACE_BEFORE_INIT_LIST" value="true" />
