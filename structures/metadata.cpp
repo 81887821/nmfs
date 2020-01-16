@@ -2,15 +2,17 @@
 #include "metadata.hpp"
 #include "../memory_slices/borrower_slice.hpp"
 #include "utils/data_object_key.hpp"
+#include "super_object.hpp"
 
 using namespace nmfs::structures;
 
-metadata::metadata(super_object& super, std::string path, fuse_context* fuse_context, mode_t mode)
+metadata::metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode)
     : context(super),
-      path(std::move(path)),
+      key(std::move(key)),
+      open_count(1),
       link_count(1),
-      owner(fuse_context->uid),
-      group(fuse_context->gid),
+      owner(owner),
+      group(group),
       mode(mode),
       size(0),
       dirty(true) {
@@ -21,21 +23,22 @@ metadata::metadata(super_object& super, std::string path, fuse_context* fuse_con
     ctime = atime;
 }
 
-metadata::metadata(super_object& super, std::string path, const on_disk::metadata& on_disk_structure)
+metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure)
     : context(super),
-      path(std::move(path)),
-      link_count(on_disk_structure.link_count),
-      owner(on_disk_structure.owner),
-      group(on_disk_structure.group),
-      mode(on_disk_structure.mode),
-      size(on_disk_structure.size),
-      atime(on_disk_structure.atime),
-      mtime(on_disk_structure.mtime),
-      ctime(on_disk_structure.ctime) {
+      key(std::move(key)),
+      open_count(1),
+      link_count(on_disk_structure->link_count),
+      owner(on_disk_structure->owner),
+      group(on_disk_structure->group),
+      mode(on_disk_structure->mode),
+      size(on_disk_structure->size),
+      atime(on_disk_structure->atime),
+      mtime(on_disk_structure->mtime),
+      ctime(on_disk_structure->ctime) {
 }
 
 ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) {
-    auto key = nmfs::structures::utils::data_object_key(path, static_cast<uint32_t>(offset / context.maximum_object_size));
+    auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
     auto offset_in_object = static_cast<uint32_t>(offset % context.maximum_object_size);
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
     size_t remain_size_to_write = size_to_write;
@@ -50,7 +53,7 @@ ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) 
         DECLARE_CONST_BORROWER_SLICE(value, buffer, size_to_write_in_object);
 
         // TODO: Check return value from backend
-        context.backend->put(key, offset_in_object, value);
+        context.backend->put(data_key, offset_in_object, value);
         offset_in_object = 0;
         remain_size_in_object = context.maximum_object_size;
         remain_size_to_write -= size_to_write_in_object;
@@ -61,7 +64,7 @@ ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) 
 }
 
 ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) {
-    auto key = nmfs::structures::utils::data_object_key(path, static_cast<uint32_t>(offset / context.maximum_object_size));
+    auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
     auto offset_in_object = static_cast<uint32_t>(offset % context.maximum_object_size);
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
     size_t remain_size_to_read = size_to_read;
@@ -71,7 +74,7 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) {
         auto value = borrower_slice(buffer, remain_size_in_object);
 
         // TODO: Check return value from backend
-        context.backend->get(key, offset_in_object, size_to_read_in_object, value);
+        context.backend->get(data_key, offset_in_object, size_to_read_in_object, value);
         offset_in_object = 0;
         remain_size_in_object = context.maximum_object_size;
         remain_size_to_read -= size_to_read_in_object;
@@ -96,7 +99,6 @@ void metadata::truncate(off_t new_size) {
 
 void metadata::sync() {
     if (dirty) {
-        auto key = borrower_slice(path);
         on_disk::metadata on_disk_structure = to_on_disk_structure();
         auto value = borrower_slice(&on_disk_structure, sizeof(on_disk_structure));
 
@@ -106,10 +108,14 @@ void metadata::sync() {
 }
 
 void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
-    auto key = nmfs::structures::utils::data_object_key(path, index_from);
+    auto data_key = nmfs::structures::utils::data_object_key(key, index_from);
 
     for (uint32_t i = index_from; i <= index_to; i++) {
-        key.update_index(i);
-        context.backend->remove(key);
+        data_key.update_index(i);
+        context.backend->remove(data_key);
     }
+}
+
+void metadata::refresh() {
+    // TODO
 }

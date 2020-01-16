@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -5,7 +6,6 @@
 
 #include "fuse_operations.hpp"
 #include "memory_slices/slice.hpp"
-#include "constants.hpp"
 #include "fuse.hpp"
 #include "utils.hpp"
 #include "mapper.hpp"
@@ -52,72 +52,45 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
     return 0;
 }
 
-int getattr(const char* path, struct stat* stat, struct fuse_file_info* file_info){
+int getattr(const char* path, struct stat* stat, struct fuse_file_info* file_info) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : getattr" << '\n';
 #endif
     fuse_context *fuse_context = fuse_get_context();
-    std::shared_ptr<nmfs::structures::metadata> metadata; // TODO: = get_metadata(fuse_context, path);
+    auto super_object = reinterpret_cast<nmfs::structures::super_object*>(fuse_get_context()->private_data);
+    auto& metadata = file_info? *reinterpret_cast<nmfs::structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
     std::memset(stat, 0, sizeof(struct stat));
-    stat->st_nlink = metadata->link_count;
-    stat->st_mode = metadata->mode;
-    stat->st_uid = metadata->owner;
-    stat->st_gid = metadata->group;
-    stat->st_size = metadata->size;
-    stat->st_atim = metadata->atime;
-    stat->st_mtim = metadata->mtime;
-    stat->st_ctim = metadata->ctime;
+    stat->st_nlink = metadata.link_count;
+    stat->st_mode = metadata.mode;
+    stat->st_uid = metadata.owner;
+    stat->st_gid = metadata.group;
+    stat->st_size = metadata.size;
+    stat->st_atim = metadata.atime;
+    stat->st_mtim = metadata.mtime;
+    stat->st_ctim = metadata.ctime;
+
+    if (!file_info) {
+        super_object->cache.close(path, metadata);
+    }
 
     return 0;
 }
 
-int open(const char* path, struct fuse_file_info* file_info){
+int open(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : open" << '\n';
 #endif
-    uint64_t file_handler_num;
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *static_cast<nmfs::structures::super_object*>(fuse_context->private_data);
 
-
-    if(file_info->fh > 0)
-        return 0;
-
-    // make key slice
-    auto key = nmfs::make_key(path, nmfs::key_mode);
-
     try {
-        auto value = super_object.backend->get(*key);
-
-        //nmfs::structures::metadata* metadata;
-        auto on_disk_metadata = reinterpret_cast<nmfs::structures::on_disk::metadata*>(value.data());
-
-        nmfs::structures::metadata metadata(super_object, path, *on_disk_metadata);
-
-        file_handler_num = nmfs::next_file_handler;
-        nmfs::next_file_handler++;
-
-        nmfs::file_handler_map[std::string(key->data())] = file_handler_num;
-
-        // caching
+        nmfs::structures::metadata& metadata = super_object.cache.open(path);
+        file_info->fh = reinterpret_cast<uint64_t>(&metadata);
+        return 0;
     } catch (std::runtime_error& e) {
-
-        // create metadata
-        std::unique_ptr<nmfs::structures::metadata> metadata = std::make_unique<nmfs::structures::metadata>(super_object, path, fuse_context, S_IFREG | 0755);
-
-        // write metadat on disk
-        metadata->sync();
-
-        file_handler_num = nmfs::next_file_handler;
-        nmfs::next_file_handler++;
-
-        nmfs::file_handler_map[std::string(key->data())] = file_handler_num;
+        return nmfs::fuse_operations::create(path, 0644 | S_IFREG, file_info);
     }
-
-    file_info->fh = file_handler_num;
-
-    return 0;
 }
 int nmfs::fuse_operations::mkdir(const char* path, mode_t mode);
 int nmfs::fuse_operations::rmdir(const char* path);

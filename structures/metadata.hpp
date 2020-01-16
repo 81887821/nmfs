@@ -7,15 +7,17 @@
 #include <string>
 #include "../fuse.hpp"
 #include "../primitive_types.hpp"
-#include "super_object.hpp"
+#include "../memory_slices/owner_slice.hpp"
 #include "on_disk/metadata.hpp"
+#include "super_object.fwd.hpp"
 
 namespace nmfs::structures {
 
 class metadata {
 public:
     super_object& context;
-    std::string path;
+    owner_slice key;
+    size_t open_count;
     nlink_t link_count;
     uid_t owner;
     gid_t group;
@@ -26,13 +28,14 @@ public:
     struct timespec ctime;
     bool dirty = false;
 
-    metadata(super_object& super, std::string path, fuse_context* fuse_context, mode_t mode);
-    metadata(super_object& super, std::string path, const on_disk::metadata& on_disk_structure);
+    metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
+    metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure);
 
     ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
     ssize_t read(byte* buffer, size_t size_to_read, off_t offset);
     void truncate(off_t new_size);
     void sync();
+    void refresh();
 
 private:
     [[nodiscard]] constexpr on_disk::metadata to_on_disk_structure() const;

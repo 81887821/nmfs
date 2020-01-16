@@ -10,7 +10,7 @@ class data_object_key: public owner_slice {
 public:
     const char separator = '/';
 
-    inline data_object_key(const std::string& base, uint32_t index);
+    inline data_object_key(const slice& base, uint32_t index);
 
     inline void update_index(uint32_t new_index);
     inline void increase_index();
@@ -21,11 +21,11 @@ private:
     size_t index;
 };
 
-inline data_object_key::data_object_key(const std::string& base, uint32_t index)
-    : owner_slice(base.length() + sizeof(separator) + sizeof(index)),
-      base_length(base.length()),
+inline data_object_key::data_object_key(const slice& base, uint32_t index)
+    : owner_slice(base.size() + sizeof(separator) + sizeof(index)),
+      base_length(base.size()),
       index(index) {
-    memcpy(memory.get(), base.c_str(), base_length);
+    memcpy(memory.get(), base.data(), base_length);
     memory[base_length] = separator;
     *reinterpret_cast<uint32_t*>(&memory[base_length + 1]) = index;
 }

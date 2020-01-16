@@ -12,7 +12,6 @@ pkg_check_modules(UUID REQUIRED uuid)
 add_executable(nmfs
         main.cpp
         main.hpp
-        constants.hpp
         kv_backends/kv_backend.hpp
         kv_backends/rados_backend.cpp
         kv_backends/rados_backend.hpp
@@ -24,17 +23,21 @@ add_executable(nmfs
         utils.cpp
         utils.hpp
         primitive_types.hpp
-        structures/super_object.cpp
         structures/super_object.hpp
         structures/metadata.cpp
         structures/metadata.hpp
-        structures/directory.cpp
         structures/directory.hpp
         structures/on_disk/super_object.hpp
         structures/on_disk/metadata.hpp
         structures/utils/data_object_key.hpp
         fuse.hpp
         mapper.hpp
+        local_caches/caching_policy/evict_on_last_close.hpp
+        local_caches/cache_store.hpp
+        structures/indexing_types/full_path.hpp
+        structures/indexing_types/indirection.hpp
+        structures/super_object.fwd.hpp
+        configuration.hpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

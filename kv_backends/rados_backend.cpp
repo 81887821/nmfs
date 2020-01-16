@@ -2,7 +2,6 @@
 #include <cstring>
 #include <stdexcept>
 #include "rados_backend.hpp"
-#include "../constants.hpp"
 
 nmfs::kv_backends::rados_backend::rados_backend(const nmfs::kv_backends::rados_backend::connect_information& information) {
     int err;

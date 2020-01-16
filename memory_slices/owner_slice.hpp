@@ -1,6 +1,7 @@
 #ifndef NMFS_MEMORY_SLICES_OWNER_SLICE_HPP
 #define NMFS_MEMORY_SLICES_OWNER_SLICE_HPP
 
+#include <algorithm>
 #include <memory>
 #include "slice.hpp"
 
@@ -15,6 +16,9 @@ class owner_slice: public slice {
 public:
     explicit inline owner_slice(size_t size);
     explicit inline owner_slice(size_t capacity, size_t size);
+    explicit inline owner_slice(const slice& other);
+    inline owner_slice(const owner_slice& other);
+    inline owner_slice(owner_slice&& other) = default;
 
     [[nodiscard]] inline byte* data() final;
     [[nodiscard]] inline const byte* data() const final;
@@ -30,6 +34,13 @@ inline owner_slice::owner_slice(size_t capacity, size_t size): slice(capacity, s
     if (size > capacity) {
         throw std::invalid_argument("size is larger than capacity");
     }
+}
+
+inline owner_slice::owner_slice(const slice& other): slice(other.capacity(), other.size()), memory(std::make_unique<byte[]>(other.capacity())) {
+    std::copy(other.data(), other.data() + other.size(), memory.get());
+}
+
+inline owner_slice::owner_slice(const owner_slice& other): owner_slice(static_cast<const slice&>(other)) {
 }
 
 byte* owner_slice::data() {

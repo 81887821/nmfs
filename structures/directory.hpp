@@ -8,26 +8,26 @@
 
 namespace nmfs::structures {
 
+template<typename indexing>
 class directory {
-    using on_disk_size_type = uint32_t;
-
 public:
     explicit inline directory(metadata& metadata);
 
-    inline void add_file(std::string file_name);
-    inline void remove_file(const std::string& file_name);
+    inline void add_file(typename indexing::directory_content_type content);
+    inline void remove_file(const typename indexing::directory_content_type& content);
     inline void sync() const;
 
 private:
     metadata& directory_metadata;
-    std::set<std::string> files;
+    std::set<typename indexing::directory_content_type> files;
     size_t size;
 
-    [[nodiscard]] std::unique_ptr<byte[]> serialize() const;
-    void parse(std::unique_ptr<byte[]> buffer);
+    [[nodiscard]] inline std::unique_ptr<byte[]> serialize() const;
+    inline void parse(std::unique_ptr<byte[]> buffer);
 };
 
-inline directory::directory(nmfs::structures::metadata& metadata): directory_metadata(metadata), size(sizeof(on_disk_size_type)) {
+template<typename indexing>
+inline directory<indexing>::directory(nmfs::structures::metadata& metadata): directory_metadata(metadata), size(sizeof(on_disk_size_type)) {
     if (metadata.size > 0) {
         std::unique_ptr<byte[]> buffer = std::make_unique<byte[]>(metadata.size);
 
@@ -36,25 +36,63 @@ inline directory::directory(nmfs::structures::metadata& metadata): directory_met
     }
 }
 
-inline void directory::add_file(std::string file_name) {
-    size_t file_name_length = file_name.length();
+template<typename indexing>
+inline void directory<indexing>::add_file(typename indexing::directory_content_type content) {
+    size_t content_size = indexing::get_content_size(content);
 
-    files.emplace(std::move(file_name));
-    size += sizeof(on_disk_size_type) + file_name_length;
+    files.emplace(std::move(content));
+    size += content_size;
 }
 
-inline void directory::remove_file(const std::string& file_name) {
-    if (files.erase(file_name)) {
-        size -= sizeof(on_disk_size_type) + file_name.length();
+template<typename indexing>
+inline void directory<indexing>::remove_file(const typename indexing::directory_content_type& content) {
+    if (files.erase(content)) {
+        size -= indexing::get_content_size(content);
     }
 }
 
-inline void directory::sync() const {
+template<typename indexing>
+inline void directory<indexing>::sync() const {
     if (size < directory_metadata.size) {
         directory_metadata.truncate(size);
     }
     directory_metadata.write(serialize().get(), size, 0);
     directory_metadata.sync();
+}
+
+template<typename indexing>
+inline std::unique_ptr<byte[]> directory<indexing>::serialize() const {
+    on_disk_size_type number_of_files = files.size();
+    std::unique_ptr<byte[]> buffer = std::make_unique<byte[]>(size);
+    size_t index = 0;
+
+    *reinterpret_cast<on_disk_size_type*>(&buffer[index]) = number_of_files;
+    index += sizeof(number_of_files);
+
+    for (const auto& file: files) {
+        index += indexing::serialize_directory_content(&buffer[index], file);
+    }
+
+    return buffer;
+}
+
+template<typename indexing>
+inline void directory<indexing>::parse(std::unique_ptr<byte[]> buffer) {
+    size_t index = 0;
+
+    on_disk_size_type number_of_files = *reinterpret_cast<on_disk_size_type*>(&buffer[index]);
+    index += sizeof(on_disk_size_type);
+
+    typename indexing::directory_content_type content;
+    on_disk_size_type parsed_size;
+
+    for (on_disk_size_type i = 0; i < number_of_files; i++) {
+        std::tie(content, parsed_size) = indexing::parse_directory_content(&buffer[index]);
+        files.emplace(std::move(content));
+        index += parsed_size;
+    }
+
+    size = index;
 }
 
 }
