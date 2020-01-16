@@ -98,7 +98,7 @@ int getattr(const char* path, struct stat* stat, struct fuse_file_info* file_inf
     std::cout << '\n' << "__function__call : getattr" << '\n';
 #endif
     fuse_context *fuse_context = fuse_get_context();
-    std::shared_ptr<nmfs::structures::metadata> metadata = get_metadata(fuse_context, path); //////
+    std::shared_ptr<nmfs::structures::metadata> metadata; // TODO: = get_metadata(fuse_context, path);
 
     std::memset(stat, 0, sizeof(struct stat));
     stat->st_nlink = metadata->link_count;

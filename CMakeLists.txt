@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 find_package(PkgConfig REQUIRED)
 find_library(rados librados.so)
 pkg_check_modules(FUSE3 REQUIRED fuse3)
+pkg_check_modules(UUID REQUIRED uuid)
 
 add_executable(nmfs
         main.cpp
@@ -35,6 +36,6 @@ add_executable(nmfs
         fuse.hpp
         mapper.hpp
         )
-target_link_libraries(nmfs ${FUSE3_LIBRARIES} rados)
-target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS})
-target_compile_options(nmfs PUBLIC ${FUSE3_CFLAGS_OTHER})
+target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
+target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})
+target_compile_options(nmfs PUBLIC ${FUSE3_CFLAGS_OTHER} ${UUID_CFLAGS_OTHER})
