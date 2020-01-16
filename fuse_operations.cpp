@@ -1,17 +1,24 @@
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <rados/librados.hpp>
+#include <memory>
 
 #include "fuse_operations.hpp"
 #include "memory_slices/slice.hpp"
 #include "constants.hpp"
+#include "fuse.hpp"
+#include "utils.hpp"
+#include "mapper.hpp"
+#include "kv_backends/rados_backend.hpp"
+#include "structures/metadata.hpp"
+#include "structures/super_object.hpp"
 
 void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_config* config) {
     int err;
 #ifdef DEBUG
-    std::cout << "__function__call : init" << std::endl;
+    std::cout << '\n' << "__function__call : init" << '\n';
 #endif
-
 
     // Initialize the cluster handle with the "ceph" cluster name and "client.admin" user
     err = cluster.init2(user_name, cluster_name, flags);
@@ -49,7 +56,13 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
         std::cout << "Created an ioctx for the pool." << std::endl;
     }
 
-    ///////////////
+    // initialize fuse context and set kv_backend
+    fuse_context* fuse_context = fuse_get_context();
+    fuse_context->private_data = new nmfs::structures::super_object();
+
+    // initialize memory cache and mapper
+    nmfs::next_file_handler = 1;
+
     return NULL;
 }
 
@@ -74,23 +87,77 @@ int nmfs::fuse_operations::fsyncdir(const char* path, int data_sync, struct fuse
 
 int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_file_info* file_info){
 #ifdef DEBUG
-    std::cout << "__function__call : create" << std::endl;
+    std::cout << '\n' << "__function__call : create" << '\n';
 #endif
 
     return 0;
 }
+
 int getattr(const char* path, struct stat* stat, struct fuse_file_info* file_info){
 #ifdef DEBUG
-    std::cout << "__function__call : getattr" << std::endl;
+    std::cout << '\n' << "__function__call : getattr" << '\n';
 #endif
+    fuse_context *fuse_context = fuse_get_context();
+    std::shared_ptr<nmfs::structures::metadata> metadata = get_metadata(fuse_context, path); //////
+
+    std::memset(stat, 0, sizeof(struct stat));
+    stat->st_nlink = metadata->link_count;
+    stat->st_mode = metadata->mode;
+    stat->st_uid = metadata->owner;
+    stat->st_gid = metadata->group;
+    stat->st_size = metadata->size;
+    stat->st_atim = metadata->atime;
+    stat->st_mtim = metadata->mtime;
+    stat->st_ctim = metadata->ctime;
 
     return 0;
 }
 
 int open(const char* path, struct fuse_file_info* file_info){
 #ifdef DEBUG
-    std::cout << "__function__call : open" << std::endl;
+    std::cout << '\n' << "__function__call : open" << '\n';
 #endif
+    uint64_t file_handler_num;
+    fuse_context* fuse_context = fuse_get_context();
+    auto& super_object = *static_cast<nmfs::structures::super_object*>(fuse_context->private_data);
+
+
+    if(file_info->fh > 0)
+        return 0;
+
+    // make key slice
+    auto key = nmfs::make_key(path, nmfs::key_mode);
+
+    try {
+        auto value = super_object.backend->get(*key);
+
+        //nmfs::structures::metadata* metadata;
+        auto on_disk_metadata = reinterpret_cast<nmfs::structures::on_disk::metadata*>(value.data());
+
+        nmfs::structures::metadata metadata(super_object, path, *on_disk_metadata);
+
+        file_handler_num = nmfs::next_file_handler;
+        nmfs::next_file_handler++;
+
+        nmfs::file_handler_map[std::string(key->data())] = file_handler_num;
+
+        // caching
+    } catch (std::runtime_error& e) {
+
+        // create metadata
+        std::unique_ptr<nmfs::structures::metadata> metadata = std::make_unique<nmfs::structures::metadata>(super_object, path, fuse_context, S_IFREG | 0755);
+
+        // write metadat on disk
+        metadata->sync();
+
+        file_handler_num = nmfs::next_file_handler;
+        nmfs::next_file_handler++;
+
+        nmfs::file_handler_map[std::string(key->data())] = file_handler_num;
+    }
+
+    file_info->fh = file_handler_num;
+
     return 0;
 }
 int nmfs::fuse_operations::mkdir(const char* path, mode_t mode);

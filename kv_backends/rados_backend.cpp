@@ -24,7 +24,7 @@ nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key) 
     ret = io_ctx.read(key.data(), buffer_list, object_size, 0);
     if (ret < 0) {
         std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.data() << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("rados_backend::get : No such file or directory");
     } else {
         std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
     }
