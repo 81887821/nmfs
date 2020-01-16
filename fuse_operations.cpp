@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <cstring>
-#include <rados/librados.hpp>
 #include <memory>
 
 #include "fuse_operations.hpp"
@@ -15,69 +14,29 @@
 #include "structures/super_object.hpp"
 
 void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_config* config) {
-    int err;
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : init" << '\n';
 #endif
-
-    // Initialize the cluster handle with the "ceph" cluster name and "client.admin" user
-    err = cluster.init2(user_name, cluster_name, flags);
-    if (err < 0) {
-        std::cerr << "Couldn't initialize the cluster handle! error " << err << std::endl;
-        exit(EXIT_FAILURE);
-    } else {
-        std::cout << "Created a cluster handle." << std::endl;
-    }
-
-    // Read a Ceph configuration file to configure the cluster handle.
-    err = cluster.conf_read_file("/etc/ceph/ceph.conf");
-    if (err < 0) {
-        std::cerr << "Couldn't read the Ceph configuration file! error " << err << std::endl;
-        exit(EXIT_FAILURE);
-    } else {
-        std::cout << "Read the Ceph configuration file." << std::endl;
-    }
-
-    // Connect to the cluster
-    err = cluster.connect();
-    if (err < 0) {
-        std::cerr << "Couldn't connect to cluster! error " << err << std::endl;
-        exit(EXIT_FAILURE);
-    } else {
-        std::cout << "Connected to the cluster." << std::endl;
-    }
-
-    // Create an ioctx for the data pool
-    err = cluster.ioctx_create(pool_name, io_ctx);
-    if (err < 0) {
-        std::cerr << "Couldn't set up ioctx! error " << err << std::endl;
-        exit(EXIT_FAILURE);
-    } else {
-        std::cout << "Created an ioctx for the pool." << std::endl;
-    }
-
-    // initialize fuse context and set kv_backend
-    fuse_context* fuse_context = fuse_get_context();
-    fuse_context->private_data = new nmfs::structures::super_object();
+    auto connect_information = kv_backends::rados_backend::connect_information {};
+    auto backend = std::make_unique<kv_backends::rados_backend>(connect_information);
+    auto super_object = new nmfs::structures::super_object(std::move(backend));
 
     // initialize memory cache and mapper
     nmfs::next_file_handler = 1;
 
-    return NULL;
+    // set fuse_context->private_data to super_object instance
+    return super_object;
 }
 
 void nmfs::fuse_operations::destroy(void* private_data) {
-
 #ifdef DEBUG
     std::cout << "__function__call : delete" << std::endl;
 #endif
-    io_ctx.close();
-    cluster.shutdown();
-
+    auto super_object = reinterpret_cast<nmfs::structures::super_object*>(private_data);
+    delete super_object;
 #ifdef DEBUG
     std::cout << "Terminate nmFS successfully." << std::endl;
 #endif
-
 }
 
 int nmfs::fuse_operations::statfs(const char* path, struct statvfs* stat);

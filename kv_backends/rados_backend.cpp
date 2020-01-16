@@ -1,9 +1,53 @@
-#include <rados/librados.hpp>
 #include <iostream>
 #include <cstring>
 #include <stdexcept>
 #include "rados_backend.hpp"
 #include "../constants.hpp"
+
+nmfs::kv_backends::rados_backend::rados_backend(const nmfs::kv_backends::rados_backend::connect_information& information) {
+    int err;
+
+    // Initialize the cluster handle with the "ceph" cluster name and "client.admin" user
+    err = cluster.init2(information.user_name, information.cluster_name, information.flags);
+    if (err < 0) {
+        std::cerr << "Couldn't initialize the cluster handle! error " << err << std::endl;
+        exit(EXIT_FAILURE);
+    } else {
+        std::cout << "Created a cluster handle." << std::endl;
+    }
+
+    // Read a Ceph configuration file to configure the cluster handle.
+    err = cluster.conf_read_file(information.configuration_file);
+    if (err < 0) {
+        std::cerr << "Couldn't read the Ceph configuration file! error " << err << std::endl;
+        exit(EXIT_FAILURE);
+    } else {
+        std::cout << "Read the Ceph configuration file." << std::endl;
+    }
+
+    // Connect to the cluster
+    err = cluster.connect();
+    if (err < 0) {
+        std::cerr << "Couldn't connect to cluster! error " << err << std::endl;
+        exit(EXIT_FAILURE);
+    } else {
+        std::cout << "Connected to the cluster." << std::endl;
+    }
+
+    // Create an ioctx for the data pool
+    err = cluster.ioctx_create(pool_name, io_ctx);
+    if (err < 0) {
+        std::cerr << "Couldn't set up ioctx! error " << err << std::endl;
+        exit(EXIT_FAILURE);
+    } else {
+        std::cout << "Created an ioctx for the pool." << std::endl;
+    }
+}
+
+nmfs::kv_backends::rados_backend::~rados_backend() {
+    io_ctx.close();
+    cluster.shutdown();
+}
 
 nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key) {
     uint64_t object_size;

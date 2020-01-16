@@ -8,6 +8,8 @@ namespace nmfs::kv_backends {
 
 class kv_backend {
 public:
+    virtual ~kv_backend() = default;
+
     [[nodiscard]] virtual owner_slice get(const slice& key) = 0;
     virtual ssize_t get(const slice& key, slice& value) = 0;
     virtual ssize_t get(const slice& key, off_t offset, size_t length, slice& value) = 0;

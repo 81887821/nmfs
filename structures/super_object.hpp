@@ -12,7 +12,12 @@ public:
     const size_t maximum_object_size = 64 * 1024;
 
     std::unique_ptr<kv_backend> backend;
+
+    explicit inline super_object(std::unique_ptr<kv_backend> backend);
 };
+
+inline super_object::super_object(std::unique_ptr<kv_backend> backend): backend(std::move(backend)) {
+}
 
 }
 
