@@ -74,7 +74,7 @@ metadata& cache_store<indexing, caching_policy>::create(const std::string_view& 
     if (cache.contains(path)) {
         throw std::runtime_error("Create called to existing file");
     } else {
-        typename indexing::slice_type key = indexing::make_key(path);
+        typename indexing::slice_type key = indexing::make_key(context, path);
         auto emplace_result = cache.emplace(std::make_pair(
             std::string(path),
             metadata(context, owner_slice(std::move(key)), owner, group, mode)
@@ -110,7 +110,7 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(const
         auto& directory = iterator->second;
 
         if (caching_policy::is_valid(context, directory)) {
-            directory.metadata.open_count++;
+            directory.directory_metadata.open_count++;
             return directory;
         } else {
             // Drop directory cache and reopen

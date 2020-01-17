@@ -11,14 +11,16 @@ namespace nmfs::structures {
 template<typename indexing>
 class directory {
 public:
+    metadata& directory_metadata;
+
     explicit inline directory(metadata& metadata);
 
+    inline std::set<typename indexing::directory_content_type>& get_files();
     inline void add_file(typename indexing::directory_content_type content);
     inline void remove_file(const typename indexing::directory_content_type& content);
     inline void sync() const;
 
 private:
-    metadata& directory_metadata;
     std::set<typename indexing::directory_content_type> files;
     size_t size;
 
@@ -34,6 +36,11 @@ inline directory<indexing>::directory(nmfs::structures::metadata& metadata): dir
         metadata.read(buffer.get(), metadata.size, 0);
         parse(std::move(buffer));
     }
+}
+
+template<typename indexing>
+inline std::set<typename indexing::directory_content_type>& directory<indexing>::get_files(){
+    return files;
 }
 
 template<typename indexing>
