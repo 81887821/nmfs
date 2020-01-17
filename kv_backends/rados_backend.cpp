@@ -97,7 +97,7 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, nmfs::slic
     ret = io_ctx.read(key.data(), buffer_list, value.capacity(), 0); // number of bytes read on success, negative error code on failure
     if (ret < 0) {
         std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.data() << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("rados_backend::get : No such file or directory");
     } else {
         std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
     }
