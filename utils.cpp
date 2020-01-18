@@ -37,22 +37,6 @@ std::string nmfs::get_filename(const std::string& path) {
     }
 }
 
-std::unique_ptr<nmfs::slice> make_key(const char* path, uint8_t key_mode) {
-    if(key_mode == 1){
-        uint32_t path_length = strlen(path);
-        std::unique_ptr<nmfs::borrower_slice> key;
-        key = std::make_unique<nmfs::borrower_slice>((void *)path, path_length);
-
-        return key;
-    } else if(key_mode == 2){
-        std::unique_ptr<nmfs::owner_slice> key;
-    } else if(key_mode == 3) {
-        std::unique_ptr<nmfs::owner_slice> key;
-    } else {
-        return nullptr;
-    }
-}
-
 std::string nmfs::generate_uuid() {
     char uuid[37];
     uuid_t generated_uuid;
