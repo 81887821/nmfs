@@ -3,6 +3,7 @@
 #include <string>
 #include <cstring>
 #include <memory>
+#include <errno.h>
 
 #include "fuse_operations.hpp"
 #include "memory_slices/slice.hpp"
@@ -25,6 +26,11 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
 
     // initialize memory cache and mapper
     nmfs::next_file_handler = 1;
+    
+    // open root metadata
+    //structures::metadata& root_metadata = super_object->cache.open("/");
+    fuse_context* fuse_context = fuse_get_context();
+    structures::metadata& root_metadata = super_object->cache.create("/", fuse_context->uid, fuse_context->gid, 0755 | S_IFDIR);
 
     // set fuse_context->private_data to super_object instance
     return super_object;
@@ -104,10 +110,10 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
     } catch (std::runtime_error& e) {
         // TODO
     }
-
+    return 0;
 }
 
-int getattr(const char* path, struct stat* stat, struct fuse_file_info* file_info) {
+int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct fuse_file_info* file_info) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : getattr" << '\n';
 #endif
@@ -132,7 +138,7 @@ int getattr(const char* path, struct stat* stat, struct fuse_file_info* file_inf
     return 0;
 }
 
-int open(const char* path, struct fuse_file_info* file_info) {
+int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : open" << '\n';
 #endif
@@ -153,14 +159,48 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : mkdir" << '\n';
 #endif
+    fuse_context* fuse_context = fuse_get_context(); 
+    auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);	
+    
+    try {
+        structures::directory new_directory = super_object.cache.create_directory(path, fuse_context->uid, fuse_context->gid, mode | S_IFDIR);
+    	
+	// add to parent directory
+	std::string parent_directory = get_parent_directory(path);
+        std::string new_directory_name = get_filename(path);
 
-
+        structures::directory directory = super_object.cache.open_directory(parent_directory);
+        directory.add_file(new_directory_name); 
+    
+    } catch (std::runtime_error& e) {
+    	// TODO
+    }
     return 0;
 }
+
 int nmfs::fuse_operations::rmdir(const char* path) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : rmdir" << '\n';
 #endif
+    fuse_context* fuse_context = fuse_get_context(); 
+    auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);	
+    
+    try {
+        structures::metadata& directory_metadata = super_object.cache.open(path);
+   	
+	if(!S_ISDIR(directory_metadata.mode)){
+	    return -ENOTDIR;
+	} else if(directory_metadata.size > 0) {
+	    return -ENOTEMPTY;
+	} else {
+	   //directory.delete();
+	}
+
+    
+    } catch (std::runtime_error& e) {
+    	// TODO
+    }
+
     return 0;
 }
 
@@ -175,7 +215,11 @@ int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t si
 
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
-        written_size = metadata.write(buffer, size, offset);
+        if(!S_ISREG(metadata.mode)){
+	    return -EBADF;
+	}
+	
+	written_size = metadata.write(buffer, size, offset);
 
         if (!file_info) {
             super_object->cache.close(path, metadata);
@@ -223,6 +267,18 @@ int nmfs::fuse_operations::unlink(const char* path) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : unlink" << '\n';
 #endif
+    fuse_context* fuse_context = fuse_get_context();
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    
+    try {
+        auto& metadata = super_object->cache.open(path);
+    	// remove data blocks
+	// metadata.delete();
+
+    } catch (std::runtime_error& e) {
+    	// TODO
+    }
+    
     return 0;
 }
 
@@ -274,6 +330,15 @@ int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : truncate" << '\n';
 #endif
+    fuse_context* fuse_context = fuse_get_context();
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    try {
+    	auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+    	metadata.truncate(length);
+    } catch (std::runtime_error& e) {
+    	// TODO
+    }
+   
     return 0;
 }
 
@@ -362,15 +427,33 @@ int nmfs::fuse_operations::access(const char* path, int mask) {
 
 int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : mkdir" << '\n';
+    std::cout << '\n' << "__function__call : release" << '\n';
 #endif
+    fuse_context* fuse_context = fuse_get_context();
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+
+    super_object->cache.close(path, metadata);
     return 0;
 }
 
 int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : mkdir" << '\n';
+    std::cout << '\n' << "__function__call : releasedir" << '\n';
+#endif    
+    fuse_context* fuse_context = fuse_get_context();
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto& directory_metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+
+    super_object->cache.close(path, directory_metadata);
+    return 0;
+}
+
+int nmfs::fuse_operations::utimens(const char *, const struct timespec tv[2], struct fuse_file_info *fi) {
+#ifdef DEBUG
+    std::cout << '\n' << "__function__call : utimens" << '\n';
 #endif
+
     return 0;
 }
 
@@ -385,27 +468,27 @@ int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* f
     //operations.fsync = fsync;
     //operations.fsyncdir = fsyncdir;
 
-    //operations.mkdir = mkdir;
-    //operations.rmdir = rmdir;
-    //operations.write = write;
+    operations.mkdir = mkdir;
+    operations.rmdir = rmdir;
+    operations.write = write;
     //operations.fallocate = fallocate;
     operations.create = create;
-    //operations.unlink = unlink;
+    operations.unlink = unlink;
 
     //operations.rename = rename;
-    //operations.chmod = chmod;
-    //operations.chown = chown;
-    //operations.truncate = truncate;
+    operations.chmod = chmod;
+    operations.chown = chown;
+    operations.truncate = truncate;
 
     operations.getattr = getattr;
     operations.open = open;
-    //operations.read = read;
-    //operations.opendir = opendir;
-    //operations.readdir = readdir;
-    //operations.access = access;
+    operations.read = read;
+    operations.opendir = opendir;
+    operations.readdir = readdir;
+    operations.access = access;
 
-    //operations.release = release;
-    //operations.releasedir = releasedir;
-
+    operations.release = release;
+    operations.releasedir = releasedir;
+    operations.utimens = utimens;
     return operations;
 }

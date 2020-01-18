@@ -36,6 +36,7 @@ int read_buf(const char* path, struct fuse_bufvec** buffer, size_t size, off_t o
 
 int release(const char* path, struct fuse_file_info* file_info);
 int releasedir(const char* path, struct fuse_file_info* file_info);
+int utimens(const char *, const struct timespec tv[2], struct fuse_file_info *fi);
 
 ::fuse_operations get_fuse_ops();
 
