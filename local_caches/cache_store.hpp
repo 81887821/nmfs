@@ -6,6 +6,7 @@
 #include <string_view>
 #include <type_traits>
 #include <sys/stat.h>
+#include <stdexcept>
 #include "../structures/directory.hpp"
 #include "../structures/metadata.hpp"
 #include "../structures/super_object.fwd.hpp"
@@ -44,6 +45,8 @@ template<typename indexing, typename caching_policy>
 cache_store<indexing, caching_policy>::cache_store(super_object& context): context(context) {
 }
 
+#include <fuse.h>
+
 template<typename indexing, typename caching_policy>
 inline metadata& cache_store<indexing, caching_policy>::open(const std::string_view& path) {
     auto iterator = cache.find(path);
@@ -58,14 +61,20 @@ inline metadata& cache_store<indexing, caching_policy>::open(const std::string_v
         return metadata;
     } else {
         typename indexing::slice_type key = indexing::make_key(context, path);
-        owner_slice value = context.backend->get(key);
-        auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
+        
+	try {
+	    owner_slice value = context.backend->get(key);
+	    auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
 
-        auto emplace_result = cache.emplace(std::make_pair(
-            std::string(path),
-            metadata(context, owner_slice(std::move(key)), on_disk_metadata)
-        ));
-        return emplace_result.first->second;
+            auto emplace_result = cache.emplace(std::make_pair(
+                std::string(path),
+                metadata(context, owner_slice(std::move(key)), on_disk_metadata)
+            ));
+            return emplace_result.first->second;
+	} catch (std::runtime_error& e) {
+	    fuse_context* fuse_context = fuse_get_context();
+	    return create(path, fuse_context->uid, fuse_context->gid, 0755 | S_IFREG);
+	}
     }
 }
 
