@@ -414,14 +414,11 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
 
     try {
         auto& directory = super_object->cache.open_directory(path);
-        std::set<std::string>& files = directory.get_files();
 
         filler(buffer, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
         filler(buffer, "..", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
 
-        for (const std::string &entry: files) {
-            filler(buffer, entry.c_str(), nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
-        }
+        directory.fill_directory(fuse_directory_filler(buffer, filler, readdir_flags));
 
         return 0;
     } catch (std::runtime_error& e) {
