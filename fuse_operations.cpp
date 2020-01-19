@@ -28,9 +28,13 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
     nmfs::next_file_handler = 1;
     
     // open root metadata
-    //structures::metadata& root_metadata = super_object->cache.open("/");
-    fuse_context* fuse_context = fuse_get_context();
-    structures::metadata& root_metadata = super_object->cache.create("/", fuse_context->uid, fuse_context->gid, 0755 | S_IFDIR);
+    std::string root_path("/");
+    try {
+        auto& root_directory = super_object->cache.open_directory(root_path);
+    } catch (std::runtime_error& e) {
+        fuse_context* fuse_context = fuse_get_context();
+        auto& root_directory = super_object->cache.create_directory(root_path, fuse_context->uid, fuse_context->gid, 0755 | S_IFDIR);
+    }
 
     // set fuse_context->private_data to super_object instance
     return super_object;
@@ -103,8 +107,9 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         std::string current_directory = get_parent_directory(path);
         std::string file_name = get_filename(path);
 
-        structures::directory directory = super_object.cache.open_directory(current_directory);
-        directory.add_file(file_name);
+        auto& directory = super_object.cache.open_directory(current_directory);
+ 	std::cout << "add " << file_name << " to " << current_directory << '\n';
+	directory.add_file(file_name);
 
         return 0;
     } catch (std::runtime_error& e) {
@@ -119,22 +124,25 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
-    auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+    try {
+        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-    std::memset(stat, 0, sizeof(struct stat));
-    stat->st_nlink = metadata.link_count;
-    stat->st_mode = metadata.mode;
-    stat->st_uid = metadata.owner;
-    stat->st_gid = metadata.group;
-    stat->st_size = metadata.size;
-    stat->st_atim = metadata.atime;
-    stat->st_mtim = metadata.mtime;
-    stat->st_ctim = metadata.ctime;
+        std::memset(stat, 0, sizeof(struct stat));
+        stat->st_nlink = metadata.link_count;
+        stat->st_mode = metadata.mode;
+        stat->st_uid = metadata.owner;
+        stat->st_gid = metadata.group;
+        stat->st_size = metadata.size;
+        stat->st_atim = metadata.atime;
+        stat->st_mtim = metadata.mtime;
+        stat->st_ctim = metadata.ctime;
 
-    if (!file_info) {
-        super_object->cache.close(path, metadata);
+        if (!file_info) {
+            super_object->cache.close(path, metadata);
+        }
+    } catch (std::runtime_error& e) {
+   	return -ENOENT;
     }
-
     return 0;
 }
 
@@ -163,13 +171,13 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);	
     
     try {
-        structures::directory new_directory = super_object.cache.create_directory(path, fuse_context->uid, fuse_context->gid, mode | S_IFDIR);
+        auto& new_directory = super_object.cache.create_directory(path, fuse_context->uid, fuse_context->gid, mode | S_IFDIR);
     	
 	// add to parent directory
 	std::string parent_directory = get_parent_directory(path);
         std::string new_directory_name = get_filename(path);
 
-        structures::directory directory = super_object.cache.open_directory(parent_directory);
+        auto& directory = super_object.cache.open_directory(parent_directory);
         directory.add_file(new_directory_name); 
     
     } catch (std::runtime_error& e) {
@@ -373,10 +381,11 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
-
+    
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
-
+        //auto& metadata = (file_info)? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+        auto& metadata = super_object->cache.open(path); // root directory didn't update file_info->fh
+	
         if(S_ISDIR(metadata.mode)) {
             file_info->fh = reinterpret_cast<uint64_t>(&metadata);
         } else {
@@ -401,7 +410,7 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
 
     try {
-        structures::directory directory = super_object->cache.open_directory(path);
+        auto& directory = super_object->cache.open_directory(path);
         std::set<std::string>& files = directory.get_files();
 
         filler(buffer, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
