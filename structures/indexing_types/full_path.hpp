@@ -7,6 +7,8 @@
 #include "../../primitive_types.hpp"
 #include "../super_object.hpp"
 #include "../../memory_slices/borrower_slice.hpp"
+#include "../../fuse.hpp"
+#include "../directory.hpp"
 
 namespace nmfs::indexing_types {
 
@@ -38,6 +40,10 @@ public:
 
     static inline size_t get_content_size(const directory_content_type& content) {
         return sizeof(on_disk_size_type) + content.length();
+    }
+
+    static inline int fill_content(const directory_content_type& content, const fuse_directory_filler& filler) {
+        return filler(content.c_str());
     }
 };
 

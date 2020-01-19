@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <set>
+#include "../fuse.hpp"
 #include "metadata.hpp"
 
 namespace nmfs::structures {
@@ -15,10 +16,10 @@ public:
 
     explicit inline directory(metadata& metadata);
 
-    inline std::set<typename indexing::directory_content_type>& get_files();
     inline void add_file(typename indexing::directory_content_type content);
     inline void remove_file(const typename indexing::directory_content_type& content);
     inline void sync() const;
+    inline void fill_directory(const fuse_directory_filler& filler);
 
 private:
     std::set<typename indexing::directory_content_type> files;
@@ -36,11 +37,6 @@ inline directory<indexing>::directory(nmfs::structures::metadata& metadata): dir
         metadata.read(buffer.get(), metadata.size, 0);
         parse(std::move(buffer));
     }
-}
-
-template<typename indexing>
-inline std::set<typename indexing::directory_content_type>& directory<indexing>::get_files(){
-    return files;
 }
 
 template<typename indexing>
@@ -100,6 +96,13 @@ inline void directory<indexing>::parse(std::unique_ptr<byte[]> buffer) {
     }
 
     size = index;
+}
+
+template<typename indexing>
+void directory<indexing>::fill_directory(const fuse_directory_filler& filler) {
+    for (const auto& content: files) {
+        indexing::fill_content(content, filler);
+    }
 }
 
 }

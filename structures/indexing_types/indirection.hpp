@@ -27,6 +27,10 @@ class indirection {
     static inline size_t get_content_size(const directory_content_type& content) {
         throw std::runtime_error("Not implemented");
     }
+
+    static inline int fill_content(const directory_content_type& content, const fuse_directory_filler& filler) {
+        throw std::runtime_error("Not implemented");
+    }
 };
 
 }

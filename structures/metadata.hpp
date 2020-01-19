@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
-#include "../fuse.hpp"
 #include "../primitive_types.hpp"
 #include "../memory_slices/owner_slice.hpp"
 #include "on_disk/metadata.hpp"
