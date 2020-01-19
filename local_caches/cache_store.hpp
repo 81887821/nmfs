@@ -72,8 +72,7 @@ inline metadata& cache_store<indexing, caching_policy>::open(const std::string_v
             ));
             return emplace_result.first->second;
 	} catch (std::runtime_error& e) {
-	    fuse_context* fuse_context = fuse_get_context();
-	    return create(path, fuse_context->uid, fuse_context->gid, 0755 | S_IFREG);
+		throw std::runtime_error("No such file or directory");
 	}
     }
 }
@@ -126,14 +125,17 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(const
             directory_cache.erase(iterator);
         }
     }
-
-    metadata& directory_metadata = open(path);
-    assert(S_ISDIR(directory_metadata.mode));
-    auto emplace_result = directory_cache.emplace(std::make_pair(
-        std::string(path),
-        directory<indexing>(directory_metadata)
-    ));
-    return emplace_result.first->second;
+    try{
+        metadata& directory_metadata = open(path);
+        assert(S_ISDIR(directory_metadata.mode));
+        auto emplace_result = directory_cache.emplace(std::make_pair(
+            std::string(path),
+            directory<indexing>(directory_metadata)
+        ));
+        return emplace_result.first->second;
+    } catch (std::runtime_error& e) {
+	throw std::runtime_error("No such file or directory");
+    }
 }
 
 template<typename indexing, typename caching_policy>

@@ -128,13 +128,16 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, off_t offs
 ssize_t nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, const nmfs::slice& value) { // fully write
     librados::bufferlist write_buffer = librados::bufferlist::static_from_mem(const_cast<char*>(value.data()), value.size());
     int ret;
-
-    ret = io_ctx.write_full(key.data(), write_buffer); // 0 on success, negative error code on failure
+    
+    //ret = io_ctx.write_full(key.data(), write_buffer); // 0 on success, negative error code on failure
+    
+    std::string key_str((const char *)key.data(), key.size());
+    ret = io_ctx.write_full(key_str.c_str(), write_buffer); // 0 on success, negative error code on failure
     if(ret < 0){
-        std::cerr << "rados_backend::put : Cannot perform fully write in object on " << key.data() << std::endl;
+        std::cerr << "rados_backend::put : Cannot perform fully write in object on " << key_str << std::endl;
         exit(EXIT_FAILURE);
     } else {
-        std::cout << "rados_backend::put : Successfully write the object on " << key.data() << std::endl;
+        std::cout << "rados_backend::put : Successfully write the object on " << key_str << std::endl;
     }
 
     return ret;
@@ -143,13 +146,16 @@ ssize_t nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, const nmfs
 ssize_t nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, off_t offset, const nmfs::slice& value) { // partial write
     librados::bufferlist buffer_list = librados::bufferlist::static_from_mem(const_cast<char*>(value.data()), value.size());
     int ret;
-
-    ret = io_ctx.write(key.data(), buffer_list, value.size(), offset);
+    
+    //ret = io_ctx.write(key.data(), buffer_list, value.size(), offset);
+    
+    std::string key_str((const char *)key.data(), key.size());
+    ret = io_ctx.write(key_str.c_str(), buffer_list, value.size(), offset);
     if(ret < 0){
-        std::cerr << "rados_backend::put : Cannot perform partial write in object on "<< key.data() << std::endl;
+        std::cerr << "rados_backend::put : Cannot perform partial write in object on "<< key_str << std::endl;
         exit(EXIT_FAILURE);
     } else {
-        std::cout << "rados_backend::put : Successfully write the object on" << key.data() << "offset : " << offset << std::endl;
+        std::cout << "rados_backend::put : Successfully write the object on" << key_str << "offset : " << offset << std::endl;
     }
 
     return ret;
