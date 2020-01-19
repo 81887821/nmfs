@@ -18,8 +18,8 @@ public:
 
     inline void add_file(typename indexing::directory_content_type content);
     inline void remove_file(const typename indexing::directory_content_type& content);
-    inline void sync() const;
-    inline void fill_directory(const fuse_directory_filler& filler);
+    inline void flush() const;
+    inline void fill_buffer(const fuse_directory_filler& filler);
 
 private:
     std::set<typename indexing::directory_content_type> files;
@@ -55,12 +55,12 @@ inline void directory<indexing>::remove_file(const typename indexing::directory_
 }
 
 template<typename indexing>
-inline void directory<indexing>::sync() const {
+inline void directory<indexing>::flush() const {
     if (size < directory_metadata.size) {
         directory_metadata.truncate(size);
     }
     directory_metadata.write(serialize().get(), size, 0);
-    directory_metadata.sync();
+    directory_metadata.flush();
 }
 
 template<typename indexing>
@@ -99,7 +99,7 @@ inline void directory<indexing>::parse(std::unique_ptr<byte[]> buffer) {
 }
 
 template<typename indexing>
-void directory<indexing>::fill_directory(const fuse_directory_filler& filler) {
+void directory<indexing>::fill_buffer(const fuse_directory_filler& filler) {
     for (const auto& content: files) {
         indexing::fill_content(content, filler);
     }

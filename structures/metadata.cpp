@@ -22,7 +22,7 @@ metadata::metadata(super_object& super, owner_slice key, uid_t owner, gid_t grou
     mtime = atime;
     ctime = atime;
 
-    sync();
+    flush();
 }
 
 metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure)
@@ -99,7 +99,7 @@ void metadata::truncate(off_t new_size) {
     }
 }
 
-void metadata::sync() {
+void metadata::flush() {
     if (dirty) {
         on_disk::metadata on_disk_structure = to_on_disk_structure();
         auto value = borrower_slice(&on_disk_structure, sizeof(on_disk_structure));
@@ -118,6 +118,6 @@ void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
     }
 }
 
-void metadata::refresh() {
+void metadata::reload() {
     // TODO
 }

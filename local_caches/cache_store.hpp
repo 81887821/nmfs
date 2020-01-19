@@ -53,7 +53,7 @@ inline metadata& cache_store<indexing, caching_policy>::open(const std::string_v
         metadata& metadata = iterator->second;
 
         if (!caching_policy::is_valid(context, metadata)) {
-            metadata.refresh();
+            metadata.reload();
         }
         metadata.open_count++;
         return metadata;

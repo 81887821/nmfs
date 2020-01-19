@@ -79,7 +79,7 @@ int nmfs::fuse_operations::fsync(const char* path, int data_sync, struct fuse_fi
     // TODO : data sync
 
     if(data_sync == 0) {
-        metadata.sync();
+        metadata.flush();
     }
 
     return 0;
@@ -110,8 +110,8 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         auto& directory = super_object.cache.open_directory(current_directory);
  	std::cout << "add " << file_name << " to " << current_directory << '\n';
 	directory.add_file(file_name);
-	
-	directory.sync();
+
+        directory.flush();
         return 0;
     } catch (std::runtime_error& e) {
         // TODO
@@ -180,8 +180,8 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
 
         auto& directory = super_object.cache.open_directory(parent_directory);
         directory.add_file(new_directory_name);
-	
-	directory.sync();
+
+        directory.flush();
     
     } catch (std::runtime_error& e) {
     	// TODO
@@ -418,7 +418,7 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
         filler(buffer, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
         filler(buffer, "..", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
 
-        directory.fill_directory(fuse_directory_filler(buffer, filler, readdir_flags));
+        directory.fill_buffer(fuse_directory_filler(buffer, filler, readdir_flags));
 
         return 0;
     } catch (std::runtime_error& e) {

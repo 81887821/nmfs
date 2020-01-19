@@ -33,8 +33,14 @@ public:
     ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
     ssize_t read(byte* buffer, size_t size_to_read, off_t offset);
     void truncate(off_t new_size);
-    void sync();
-    void refresh();
+    /**
+     * Write local metadata contents to backend
+     */
+    void flush();
+    /**
+     * Discard local metadata contents and reload from backend
+     */
+    void reload();
 
 private:
     [[nodiscard]] constexpr on_disk::metadata to_on_disk_structure() const;
