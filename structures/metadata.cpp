@@ -37,7 +37,6 @@ metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata
       atime(on_disk_structure->atime),
       mtime(on_disk_structure->mtime),
       ctime(on_disk_structure->ctime) {
-    sync();
 }
 
 ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) {
