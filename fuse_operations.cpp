@@ -17,6 +17,8 @@
 
 using namespace nmfs;
 
+static const std::string_view root_path = std::string_view("/");
+
 void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_config* config) {
 #ifdef DEBUG
     std::cout << '\n' << "__function__call : init" << '\n';
@@ -29,7 +31,6 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
     nmfs::next_file_handler = 1;
 
     // open root metadata
-    std::string root_path("/");
     try {
         auto& root_directory = super_object->cache.open_directory(root_path);
     } catch (nmfs::exceptions::file_does_not_exist&) {
@@ -397,22 +398,15 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        //auto& metadata = (file_info)? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
-        auto& metadata = super_object->cache.open(path); // root directory didn't update file_info->fh
+        auto& directory = super_object->cache.open_directory(path);
 
-        if (S_ISDIR(metadata.mode)) {
-            file_info->fh = reinterpret_cast<uint64_t>(&metadata);
-        } else {
-            return -ENOTDIR;
-        }
-
-        if (!file_info) {
-            super_object->cache.close(path, metadata);
-        }
+        file_info->fh = reinterpret_cast<uint64_t>(&directory);
 
         return 0;
     } catch (nmfs::exceptions::file_does_not_exist&) {
         return -ENOENT;
+    } catch (nmfs::exceptions::is_not_directory&) {
+        return -ENOTDIR;
     } catch (std::exception&) {
         return -EIO;
     }
@@ -426,16 +420,22 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        auto& directory = super_object->cache.open_directory(path);
+        auto& directory = file_info? *reinterpret_cast<structures::directory<super_object::indexing_type>*>(file_info->fh) : super_object->cache.open_directory(path);
 
         filler(buffer, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
         filler(buffer, "..", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
 
         directory.fill_buffer(fuse_directory_filler(buffer, filler, readdir_flags));
 
+        if (!file_info) {
+            super_object->cache.close_directory(path, directory);
+        }
+
         return 0;
     } catch (nmfs::exceptions::file_does_not_exist&) {
         return -ENOENT;
+    } catch (nmfs::exceptions::is_not_directory&) {
+        return -ENOTDIR;
     } catch (std::exception&) {
         return -EIO;
     }
@@ -454,9 +454,12 @@ int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
-    auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-    super_object->cache.close(path, metadata);
+    if (file_info) {
+        auto& metadata = *reinterpret_cast<structures::metadata*>(file_info->fh);
+        super_object->cache.close(path, metadata);
+    }
+
     return 0;
 }
 
@@ -466,9 +469,12 @@ int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* f
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
-    auto& directory_metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-    super_object->cache.close(path, directory_metadata);
+    if (file_info) {
+        auto& directory = *reinterpret_cast<structures::directory<super_object::indexing_type>*>(file_info->fh);
+        super_object->cache.close_directory(path, directory);
+    }
+
     return 0;
 }
 
