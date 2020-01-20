@@ -100,7 +100,7 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        structures::metadata& metadata = super_object.cache.create(path, fuse_context->uid, fuse_context->gid, mode);
+        structures::metadata& metadata = super_object.cache.create(path, fuse_context->uid, fuse_context->gid, mode | S_IFREG);
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
 
         // add to directory
