@@ -3,7 +3,7 @@
 #include <string>
 #include <cstring>
 #include <memory>
-#include <errno.h>
+#include <cerrno>
 
 #include "fuse_operations.hpp"
 #include "memory_slices/slice.hpp"
@@ -13,6 +13,7 @@
 #include "kv_backends/rados_backend.hpp"
 #include "structures/metadata.hpp"
 #include "structures/super_object.hpp"
+#include "exceptions/file_does_not_exist.hpp"
 
 using namespace nmfs;
 
@@ -31,7 +32,7 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
     std::string root_path("/");
     try {
         auto& root_directory = super_object->cache.open_directory(root_path);
-    } catch (std::runtime_error& e) {
+    } catch (nmfs::exceptions::file_does_not_exist&) {
         fuse_context* fuse_context = fuse_get_context();
         auto& root_directory = super_object->cache.create_directory(root_path, fuse_context->uid, fuse_context->gid, 0755 | S_IFDIR);
     }
@@ -113,10 +114,13 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
 
         directory.flush();
         return 0;
-    } catch (std::runtime_error& e) {
-        // TODO
+    } catch (nmfs::exceptions::file_already_exist&) {
+        return -EEXIST;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT; // Parent does not exist
+    } catch (std::exception&) {
+        return -EIO;
     }
-    return 0;
 }
 
 int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct fuse_file_info* file_info) {
@@ -141,10 +145,13 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
         if (!file_info) {
             super_object->cache.close(path, metadata);
         }
-    } catch (std::runtime_error& e) {
+
+        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
         return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
-    return 0;
 }
 
 int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_info) {
@@ -159,8 +166,10 @@ int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_in
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
 
         return 0;
-    } catch (std::runtime_error& e) {
-        return nmfs::fuse_operations::create(path, 0644 | S_IFREG, file_info);
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
 }
 
@@ -183,10 +192,14 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
 
         directory.flush();
 
-    } catch (std::runtime_error& e) {
-        // TODO
+        return 0;
+    } catch (nmfs::exceptions::file_already_exist&) {
+        return -EEXIST;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT; // Parent does not exist
+    } catch (std::exception&) {
+        return -EIO;
     }
-    return 0;
 }
 
 int nmfs::fuse_operations::rmdir(const char* path) {
@@ -207,12 +220,12 @@ int nmfs::fuse_operations::rmdir(const char* path) {
             //directory.delete();
         }
 
-
-    } catch (std::runtime_error& e) {
-        // TODO
+        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
-
-    return 0;
 }
 
 
@@ -238,34 +251,14 @@ int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t si
 
         // should return exactly the number of bytes requested except on error.
         return written_size;
-    } catch (std::runtime_error& e) { // failed open metadata on corresponding path
-        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
 }
 
-int nmfs::fuse_operations::write_buf(const char* path, struct fuse_bufvec* buffer, off_t offset, struct fuse_file_info* file_info) {
-#ifdef DEBUG
-    std::cout << '\n' << "__function__call : write_buf" << '\n';
-#endif
-    ssize_t written_size;
-    fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
-
-    try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
-        //written_size = metadata.write(buffer, buffer., offset);
-
-        if (!file_info) {
-            super_object->cache.close(path, metadata);
-        }
-
-        // should return exactly the number of bytes requested except on error.
-        return written_size;
-    } catch (std::runtime_error& e) { // failed open metadata on corresponding path
-        return 0;
-    }
-}
-
+int nmfs::fuse_operations::write_buf(const char* path, struct fuse_bufvec* buffer, off_t offset, struct fuse_file_info* file_info);
 
 int nmfs::fuse_operations::fallocate(const char* path, int mode, off_t offset, off_t length, struct fuse_file_info* file_info) {
 #ifdef DEBUG
@@ -307,16 +300,23 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
-    auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-    mode_t file_type = mode | S_IFMT;
-    metadata.mode = mode | file_type;
+    try {
+        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-    if (!file_info) {
-        super_object->cache.close(path, metadata);
+        mode_t file_type = mode | S_IFMT;
+        metadata.mode = mode | file_type;
+
+        if (!file_info) {
+            super_object->cache.close(path, metadata);
+        }
+
+        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
-
-    return 0;
 }
 
 int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* file_info) {
@@ -325,16 +325,23 @@ int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct 
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
-    auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-    metadata.owner = uid;
-    metadata.group = gid;
+    try {
+        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-    if (!file_info) {
-        super_object->cache.close(path, metadata);
+        metadata.owner = uid;
+        metadata.group = gid;
+
+        if (!file_info) {
+            super_object->cache.close(path, metadata);
+        }
+
+        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
-
-    return 0;
 }
 
 int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_file_info* file_info) {
@@ -346,11 +353,12 @@ int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
         metadata.truncate(length);
-    } catch (std::runtime_error& e) {
-        // TODO
+        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
-
-    return 0;
 }
 
 int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off_t offset, struct fuse_file_info* file_info) {
@@ -372,8 +380,10 @@ int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off
 
         //should return exactly the number of bytes requested except on EOF or error, otherwise the rest of the data will be substituted with zeroes.
         return read_size;
-    } catch (std::runtime_error& e) { // failed open metadata on corresponding path
-        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
 }
 
@@ -393,7 +403,7 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
         if (S_ISDIR(metadata.mode)) {
             file_info->fh = reinterpret_cast<uint64_t>(&metadata);
         } else {
-            // TODO : return error
+            return -ENOTDIR;
         }
 
         if (!file_info) {
@@ -401,8 +411,10 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
         }
 
         return 0;
-    } catch (std::runtime_error& e) {
-        return nmfs::fuse_operations::create(path, 0755 | S_IFDIR, file_info);
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
 }
 
@@ -422,10 +434,11 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
         directory.fill_buffer(fuse_directory_filler(buffer, filler, readdir_flags));
 
         return 0;
-    } catch (std::runtime_error& e) {
-        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
-
 }
 
 int nmfs::fuse_operations::access(const char* path, int mask) {

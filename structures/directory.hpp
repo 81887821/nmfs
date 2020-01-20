@@ -6,6 +6,7 @@
 #include <set>
 #include "../fuse.hpp"
 #include "metadata.hpp"
+#include "../exceptions/is_not_directory.hpp"
 
 namespace nmfs::structures {
 
@@ -31,7 +32,9 @@ private:
 
 template<typename indexing>
 inline directory<indexing>::directory(nmfs::structures::metadata& metadata): directory_metadata(metadata), size(sizeof(on_disk_size_type)) {
-    if (metadata.size > 0) {
+    if (!S_ISDIR(metadata.mode)) {
+        throw nmfs::exceptions::is_not_directory();
+    } else if (metadata.size > 0) {
         std::unique_ptr<byte[]> buffer = std::make_unique<byte[]>(metadata.size);
 
         metadata.read(buffer.get(), metadata.size, 0);

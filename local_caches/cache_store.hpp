@@ -11,6 +11,9 @@
 #include "../structures/metadata.hpp"
 #include "../structures/super_object.fwd.hpp"
 #include "../memory_slices/owner_slice.hpp"
+#include "../kv_backends/exceptions/key_does_not_exist.hpp"
+#include "../exceptions/file_does_not_exist.hpp"
+#include "../exceptions/file_already_exists.hpp"
 
 namespace nmfs {
 using namespace nmfs::structures;
@@ -69,8 +72,8 @@ inline metadata& cache_store<indexing, caching_policy>::open(const std::string_v
                 metadata(context, owner_slice(std::move(key)), on_disk_metadata)
             ));
             return emplace_result.first->second;
-        } catch (std::runtime_error& e) {
-            throw std::runtime_error("No such file or directory");
+        } catch (kv_backends::exceptions::key_does_not_exist& e) {
+            throw nmfs::exceptions::file_does_not_exist(path);
         }
     }
 }
@@ -78,14 +81,19 @@ inline metadata& cache_store<indexing, caching_policy>::open(const std::string_v
 template<typename indexing, typename caching_policy>
 metadata& cache_store<indexing, caching_policy>::create(const std::string_view& path, uid_t owner, gid_t group, mode_t mode) {
     if (cache.contains(path)) {
-        throw std::runtime_error("Create called to existing file");
+        throw nmfs::exceptions::file_already_exist(path);
     } else {
         typename indexing::slice_type key = indexing::make_key(context, path);
-        auto emplace_result = cache.emplace(std::make_pair(
-            std::string(path),
-            metadata(context, owner_slice(std::move(key)), owner, group, mode)
-        ));
-        return emplace_result.first->second;
+
+        if (context.backend->exist(key)) {
+            throw nmfs::exceptions::file_already_exist(path);
+        } else {
+            auto emplace_result = cache.emplace(std::make_pair(
+                std::string(path),
+                metadata(context, owner_slice(std::move(key)), owner, group, mode)
+            ));
+            return emplace_result.first->second;
+        }
     }
 }
 
@@ -123,31 +131,25 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(const
             directory_cache.erase(iterator);
         }
     }
-    try {
-        metadata& directory_metadata = open(path);
-        assert(S_ISDIR(directory_metadata.mode));
-        auto emplace_result = directory_cache.emplace(std::make_pair(
-            std::string(path),
-            directory<indexing>(directory_metadata)
-        ));
-        return emplace_result.first->second;
-    } catch (std::runtime_error& e) {
-        throw std::runtime_error("No such file or directory");
-    }
+
+    // If directory doesn't exist, an exception will be thrown from open
+    metadata& directory_metadata = open(path);
+    auto emplace_result = directory_cache.emplace(std::make_pair(
+        std::string(path),
+        directory<indexing>(directory_metadata)
+    ));
+    return emplace_result.first->second;
 }
 
 template<typename indexing, typename caching_policy>
 directory<indexing>& cache_store<indexing, caching_policy>::create_directory(const std::string_view& path, uid_t owner, gid_t group, mode_t mode) {
-    if (cache.contains(path)) {
-        throw std::runtime_error("Create called to existing file");
-    } else {
-        metadata& directory_metadata = create(path, owner, group, mode);
-        auto emplace_result = directory_cache.emplace(std::make_pair(
-            std::string(path),
-            directory<indexing>(directory_metadata)
-        ));
-        return emplace_result.first->second;
-    }
+    // If directory exists, an exception will be thrown from create
+    metadata& directory_metadata = create(path, owner, group, mode);
+    auto emplace_result = directory_cache.emplace(std::make_pair(
+        std::string(path),
+        directory<indexing>(directory_metadata)
+    ));
+    return emplace_result.first->second;
 }
 
 template<typename indexing, typename caching_policy>

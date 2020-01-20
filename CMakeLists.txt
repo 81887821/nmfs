@@ -38,6 +38,14 @@ add_executable(nmfs
         structures/indexing_types/indirection.hpp
         structures/super_object.fwd.hpp
         configuration.hpp
+        kv_backends/exceptions/kv_backend_exception.hpp
+        kv_backends/exceptions/generic_kv_api_failure.hpp
+        kv_backends/exceptions/key_does_not_exist.hpp
+        kv_backends/exceptions/backend_initialization_failure.hpp
+        exceptions/nmfs_exceptions.hpp
+        exceptions/file_does_not_exist.hpp
+        exceptions/file_already_exists.hpp
+        exceptions/is_not_directory.hpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

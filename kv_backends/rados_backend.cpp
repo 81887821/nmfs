@@ -2,6 +2,10 @@
 #include <cstring>
 #include <stdexcept>
 #include "rados_backend.hpp"
+#include "exceptions/backend_initialization_failure.hpp"
+#include "exceptions/key_does_not_exist.hpp"
+
+using namespace nmfs::kv_backends::exceptions;
 
 nmfs::kv_backends::rados_backend::rados_backend(const nmfs::kv_backends::rados_backend::connect_information& information) {
     int err;
@@ -9,8 +13,7 @@ nmfs::kv_backends::rados_backend::rados_backend(const nmfs::kv_backends::rados_b
     // Initialize the cluster handle with the "ceph" cluster name and "client.admin" user
     err = cluster.init2(information.user_name, information.cluster_name, information.flags);
     if (err < 0) {
-        std::cerr << "Couldn't initialize the cluster handle! error " << err << std::endl;
-        exit(EXIT_FAILURE);
+        throw backend_initialization_failure("Couldn't initialize the cluster handle", err);
     } else {
         std::cout << "Created a cluster handle." << std::endl;
     }
@@ -18,8 +21,7 @@ nmfs::kv_backends::rados_backend::rados_backend(const nmfs::kv_backends::rados_b
     // Read a Ceph configuration file to configure the cluster handle.
     err = cluster.conf_read_file(information.configuration_file);
     if (err < 0) {
-        std::cerr << "Couldn't read the Ceph configuration file! error " << err << std::endl;
-        exit(EXIT_FAILURE);
+        throw backend_initialization_failure("Couldn't read the ceph configuration file", err);
     } else {
         std::cout << "Read the Ceph configuration file." << std::endl;
     }
@@ -27,8 +29,7 @@ nmfs::kv_backends::rados_backend::rados_backend(const nmfs::kv_backends::rados_b
     // Connect to the cluster
     err = cluster.connect();
     if (err < 0) {
-        std::cerr << "Couldn't connect to cluster! error " << err << std::endl;
-        exit(EXIT_FAILURE);
+        throw backend_initialization_failure("Couldn't connect to the cluster", err);
     } else {
         std::cout << "Connected to the cluster." << std::endl;
     }
@@ -36,8 +37,7 @@ nmfs::kv_backends::rados_backend::rados_backend(const nmfs::kv_backends::rados_b
     // Create an ioctx for the data pool
     err = cluster.ioctx_create(pool_name, io_ctx);
     if (err < 0) {
-        std::cerr << "Couldn't set up ioctx! error " << err << std::endl;
-        exit(EXIT_FAILURE);
+        throw backend_initialization_failure("Couldn't set up io context", err);
     } else {
         std::cout << "Created an ioctx for the pool." << std::endl;
     }
@@ -54,22 +54,24 @@ nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key) 
     int ret;
 
     ret = io_ctx.stat(key.to_string(), &object_size, &object_mtime); // 0 on success, negative error code on failure
-    if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform read from object on " << key.to_string_view() << std::endl;
-        throw std::runtime_error("rados_backend::get : No such file or directory");
+    if (ret >= 0) {
+        std::cout << "rados_backend::get : stat success (key = " << key.to_string_view() << ")\n";
+    } else if (ret == -ENOENT) {
+        throw key_does_not_exist(key);
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
+        throw generic_kv_api_failure("rados_backend::get : stat failed (key = " + key.to_string() + ')', ret);
     }
 
     auto slice = owner_slice(object_size);
     auto buffer_list = librados::bufferlist::static_from_mem(slice.data(), slice.capacity());
 
     ret = io_ctx.read(key.to_string(), buffer_list, object_size, 0);
-    if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.to_string_view() << std::endl;
-        throw std::runtime_error("rados_backend::get : No such file or directory");
+    if (ret >= 0) {
+        std::cout << "rados_backend::get : full read success (key = " << key.to_string_view() << ")\n";
+    } else if (ret == -ENOENT) {
+        throw key_does_not_exist(key);
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
+        throw generic_kv_api_failure("rados_backend::get : read failed (key = " + key.to_string() + ')', ret);
     }
 
     slice.set_size(ret);
@@ -83,11 +85,12 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, nmfs::slic
     int ret;
 
     ret = io_ctx.stat(key.to_string(), &object_size, &object_mtime); // 0 on success, negative error code on failure
-    if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform read from object on " << key.to_string_view() << std::endl;
-        throw std::runtime_error("rados_backend::get : No such file or directory");
+    if (ret >= 0) {
+        std::cout << "rados_backend::get : stat success (key = " << key.to_string_view() << ")\n";
+    } else if (ret == -ENOENT) {
+        throw key_does_not_exist(key);
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
+        throw generic_kv_api_failure("rados_backend::get : stat failed (key = " + key.to_string() + ')', ret);
     }
 
     if (object_size > value.capacity()) {
@@ -95,11 +98,12 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, nmfs::slic
     }
 
     ret = io_ctx.read(key.to_string(), buffer_list, object_size, 0); // number of bytes read on success, negative error code on failure
-    if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.to_string_view() << std::endl;
-        throw std::runtime_error("rados_backend::get : No such file or directory");
+    if (ret >= 0) {
+        std::cout << "rados_backend::get : full read success (key = " << key.to_string_view() << ", size = " << object_size << ")\n";
+    } else if (ret == -ENOENT) {
+        throw key_does_not_exist(key);
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
+        throw generic_kv_api_failure("rados_backend::get : full read failed (key = " + key.to_string() + ", size = " + std::to_string(object_size) + ')', ret);
     }
 
     value.set_size(ret);
@@ -115,11 +119,12 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, off_t offs
     }
 
     ret = io_ctx.read(key.to_string(), buffer_list, length, offset); // number of bytes read on success, negative error code on failure
-    if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.to_string_view() << std::endl;
-        exit(EXIT_FAILURE);
+    if (ret >= 0) {
+        std::cout << "rados_backend::get : partial read success (key = " << key.to_string_view() << ", size = " << length << ", offset = " << offset << ")\n";
+    } else if (ret == -ENOENT) {
+        throw key_does_not_exist(key);
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
+        throw generic_kv_api_failure("rados_backend::get : partial read failed (key = " + key.to_string() + ", size = " + std::to_string(length) + ", offset = " + std::to_string(offset) + ')', ret);
     }
 
     value.set_size(ret);
@@ -131,11 +136,10 @@ ssize_t nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, const nmfs
     int ret;
 
     ret = io_ctx.write_full(key.to_string(), write_buffer); // 0 on success, negative error code on failure
-    if (ret < 0) {
-        std::cerr << "rados_backend::put : Cannot perform fully write in object on " << key.to_string_view() << std::endl;
-        exit(EXIT_FAILURE);
+    if (ret >= 0) {
+        std::cout << "rados_backend::put : write_full success (key = " << key.to_string_view() << ", size = " << value.size() << ")\n";
     } else {
-        std::cout << "rados_backend::put : Successfully write the object on " << key.to_string_view() << std::endl;
+        throw generic_kv_api_failure("rados_backend::put : write_full failed (key = " + key.to_string() + ", size = " + std::to_string(value.size()) + ')', ret);
     }
 
     return ret;
@@ -146,11 +150,10 @@ ssize_t nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, off_t offs
     int ret;
 
     ret = io_ctx.write(key.to_string(), buffer_list, value.size(), offset);
-    if (ret < 0) {
-        std::cerr << "rados_backend::put : Cannot perform partial write in object on " << key.to_string_view() << std::endl;
-        exit(EXIT_FAILURE);
+    if (ret >= 0) {
+        std::cout << "rados_backend::put : partial write success (key = " << key.to_string_view() << ", size = " << value.size() << ", offset = " << offset << ")\n";
     } else {
-        std::cout << "rados_backend::put : Successfully write the object on" << key.to_string_view() << "offset : " << offset << std::endl;
+        throw generic_kv_api_failure("rados_backend::put : partial write failed (key = " + key.to_string() + ", size = " + std::to_string(value.size()) + ", offset = " + std::to_string(offset) + ')', ret);
     }
 
     return ret;
@@ -162,17 +165,22 @@ bool nmfs::kv_backends::rados_backend::exist(const nmfs::slice& key) {
     int ret;
 
     ret = io_ctx.stat(key.to_string(), &object_size, &object_mtime); // 0 on success, negative error code on failure
-    return ret == 0;
+    if (ret >= 0) {
+        return true;
+    } else if (ret == -ENOENT) {
+        return false;
+    } else {
+        throw generic_kv_api_failure("rados_backend::exist : stat failed (key = " + key.to_string() + ')', ret);
+    }
 }
 
 void nmfs::kv_backends::rados_backend::remove(const nmfs::slice& key) {
     int ret;
 
     ret = io_ctx.remove(key.to_string());
-    if (ret < 0) {
-        std::cerr << "rados_backend::remove : Cannot perform removing object on " << key.to_string_view() << std::endl;
-        exit(EXIT_FAILURE);
+    if (ret >= 0) {
+        std::cout << "rados_backend::remove : remove success (key = " << key.to_string_view() << ")\n";
     } else {
-        std::cout << "rados_backend::remove : Successfully remove the object on" << key.to_string_view() << "offset : " << std::endl;
+        throw generic_kv_api_failure("rados_backend::remove : remove failed (key = " + key.to_string() + ')', ret);
     }
 }

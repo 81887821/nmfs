@@ -3,6 +3,7 @@
 #include "../memory_slices/borrower_slice.hpp"
 #include "utils/data_object_key.hpp"
 #include "super_object.hpp"
+#include "../kv_backends/exceptions/key_does_not_exist.hpp"
 
 using namespace nmfs::structures;
 
@@ -54,7 +55,6 @@ ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) 
         size_t size_to_write_in_object = std::min<size_t>(remain_size_in_object, remain_size_to_write);
         DECLARE_CONST_BORROWER_SLICE(value, buffer, size_to_write_in_object);
 
-        // TODO: Check return value from backend
         context.backend->put(data_key, offset_in_object, value);
         offset_in_object = 0;
         remain_size_in_object = context.maximum_object_size;
@@ -71,12 +71,22 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) {
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
     size_t remain_size_to_read = size_to_read;
 
+    // TODO: Error handling if (size_to_read + offset > size)
+
     while (remain_size_to_read > 0) {
         size_t size_to_read_in_object = std::min<size_t>(remain_size_in_object, remain_size_to_read);
         auto value = borrower_slice(buffer, remain_size_in_object);
+        ssize_t read_size;
 
-        // TODO: Check return value from backend
-        context.backend->get(data_key, offset_in_object, size_to_read_in_object, value);
+        try {
+            read_size = context.backend->get(data_key, offset_in_object, size_to_read_in_object, value);
+        } catch (kv_backends::exceptions::key_does_not_exist&) {
+            read_size = 0;
+        }
+
+        if (read_size < size_to_read_in_object) {
+            std::fill(buffer + read_size, buffer + size_to_read_in_object - 1, 0);
+        }
         offset_in_object = 0;
         remain_size_in_object = context.maximum_object_size;
         remain_size_to_read -= size_to_read_in_object;
@@ -114,7 +124,11 @@ void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
 
     for (uint32_t i = index_from; i <= index_to; i++) {
         data_key.update_index(i);
-        context.backend->remove(data_key);
+        try {
+            context.backend->remove(data_key);
+        } catch (kv_backends::exceptions::key_does_not_exist&) {
+            continue;
+        }
     }
 }
 
