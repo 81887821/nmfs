@@ -28,4 +28,3 @@ inline super_object::super_object(std::unique_ptr<kv_backend> backend): backend(
 }
 
 #endif //NMFS_STRUCTURES_SUPER_OBJECT_HPP
-

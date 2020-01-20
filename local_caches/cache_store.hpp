@@ -45,8 +45,6 @@ template<typename indexing, typename caching_policy>
 cache_store<indexing, caching_policy>::cache_store(super_object& context): context(context) {
 }
 
-#include <fuse.h>
-
 template<typename indexing, typename caching_policy>
 inline metadata& cache_store<indexing, caching_policy>::open(const std::string_view& path) {
     auto iterator = cache.find(path);
@@ -61,19 +59,19 @@ inline metadata& cache_store<indexing, caching_policy>::open(const std::string_v
         return metadata;
     } else {
         typename indexing::slice_type key = indexing::make_key(context, path);
-        
-	try {
-	    owner_slice value = context.backend->get(key);
-	    auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
+
+        try {
+            owner_slice value = context.backend->get(key);
+            auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
 
             auto emplace_result = cache.emplace(std::make_pair(
                 std::string(path),
                 metadata(context, owner_slice(std::move(key)), on_disk_metadata)
             ));
             return emplace_result.first->second;
-	} catch (std::runtime_error& e) {
-		throw std::runtime_error("No such file or directory");
-	}
+        } catch (std::runtime_error& e) {
+            throw std::runtime_error("No such file or directory");
+        }
     }
 }
 
@@ -125,7 +123,7 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(const
             directory_cache.erase(iterator);
         }
     }
-    try{
+    try {
         metadata& directory_metadata = open(path);
         assert(S_ISDIR(directory_metadata.mode));
         auto emplace_result = directory_cache.emplace(std::make_pair(
@@ -134,7 +132,7 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(const
         ));
         return emplace_result.first->second;
     } catch (std::runtime_error& e) {
-	throw std::runtime_error("No such file or directory");
+        throw std::runtime_error("No such file or directory");
     }
 }
 
