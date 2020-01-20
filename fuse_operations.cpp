@@ -128,7 +128,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
     std::cout << '\n' << "__function__call : getattr" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
@@ -235,7 +235,7 @@ int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t si
 #endif
     ssize_t written_size;
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
@@ -272,7 +272,7 @@ int nmfs::fuse_operations::unlink(const char* path) {
     std::cout << '\n' << "__function__call : unlink" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
         auto& metadata = super_object->cache.open(path);
@@ -299,7 +299,7 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
     std::cout << '\n' << "__function__call : chmod" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
@@ -324,7 +324,7 @@ int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct 
     std::cout << '\n' << "__function__call : chown" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
@@ -349,7 +349,7 @@ int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_
     std::cout << '\n' << "__function__call : truncate" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
         metadata.truncate(length);
@@ -368,7 +368,7 @@ int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off
 
     ssize_t read_size;
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
@@ -394,7 +394,7 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
     std::cout << '\n' << "__function__call : opendir" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
         //auto& metadata = (file_info)? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
@@ -423,7 +423,7 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
     std::cout << '\n' << "__function__call : readdir" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
         auto& directory = super_object->cache.open_directory(path);
@@ -453,7 +453,7 @@ int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file
     std::cout << '\n' << "__function__call : release" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
     auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
     super_object->cache.close(path, metadata);
@@ -465,7 +465,7 @@ int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* f
     std::cout << '\n' << "__function__call : releasedir" << '\n';
 #endif
     fuse_context* fuse_context = fuse_get_context();
-    auto super_object = reinterpret_cast<structures::super_object*>(fuse_get_context()->private_data);
+    auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
     auto& directory_metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
     super_object->cache.close(path, directory_metadata);
