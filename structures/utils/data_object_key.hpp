@@ -8,7 +8,7 @@ namespace nmfs::structures::utils {
 
 class data_object_key: public owner_slice {
 public:
-    const char separator = '/';
+    const char separator = static_cast<char>(0x1C);
 
     inline data_object_key(const slice& base, uint32_t index);
 
