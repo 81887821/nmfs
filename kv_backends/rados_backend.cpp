@@ -94,7 +94,7 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, nmfs::slic
         throw std::out_of_range("rados_backend::get : capacity of value slice is not enough");
     }
 
-    ret = io_ctx.read(key.to_string(), buffer_list, value.capacity(), 0); // number of bytes read on success, negative error code on failure
+    ret = io_ctx.read(key.to_string(), buffer_list, object_size, 0); // number of bytes read on success, negative error code on failure
     if (ret < 0) {
         std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.to_string_view() << std::endl;
         throw std::runtime_error("rados_backend::get : No such file or directory");
