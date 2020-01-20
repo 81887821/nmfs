@@ -17,6 +17,8 @@ public:
     [[nodiscard]] constexpr size_t capacity() const;
     [[nodiscard]] constexpr size_t size() const;
     constexpr void set_size(size_t new_size);
+    [[nodiscard]] inline std::string to_string() const;
+    [[nodiscard]] constexpr std::string_view to_string_view() const;
 
 protected:
     size_t memory_capacity;
@@ -45,6 +47,14 @@ constexpr slice::slice(size_t size): memory_capacity(size), data_size(size) {
 }
 
 constexpr slice::slice(size_t capacity, size_t size): memory_capacity(capacity), data_size(size) {
+}
+
+std::string slice::to_string() const {
+    return std::string(data(), data_size);
+}
+
+constexpr std::string_view slice::to_string_view() const {
+    return std::string_view(data(), data_size);
 }
 
 }

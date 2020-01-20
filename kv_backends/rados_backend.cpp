@@ -53,23 +53,23 @@ nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key) 
     time_t object_mtime;
     int ret;
 
-    ret = io_ctx.stat(key.data(), &object_size, &object_mtime); // 0 on success, negative error code on failure
+    ret = io_ctx.stat(key.to_string(), &object_size, &object_mtime); // 0 on success, negative error code on failure
     if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform read from object on " << key.data() << std::endl;
+        std::cerr << "rados_backend::get : Cannot perform read from object on " << key.to_string_view() << std::endl;
         throw std::runtime_error("rados_backend::get : No such file or directory");
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
+        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
     }
 
     auto slice = owner_slice(object_size);
     auto buffer_list = librados::bufferlist::static_from_mem(slice.data(), slice.capacity());
 
-    ret = io_ctx.read(key.data(), buffer_list, object_size, 0);
+    ret = io_ctx.read(key.to_string(), buffer_list, object_size, 0);
     if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.data() << std::endl;
+        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.to_string_view() << std::endl;
         throw std::runtime_error("rados_backend::get : No such file or directory");
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
+        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
     }
 
     slice.set_size(ret);
@@ -82,24 +82,24 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, nmfs::slic
     librados::bufferlist buffer_list = librados::bufferlist::static_from_mem(value.data(), value.capacity());
     int ret;
 
-    ret = io_ctx.stat(key.data(), &object_size, &object_mtime); // 0 on success, negative error code on failure
+    ret = io_ctx.stat(key.to_string(), &object_size, &object_mtime); // 0 on success, negative error code on failure
     if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform read from object on " << key.data() << std::endl;
+        std::cerr << "rados_backend::get : Cannot perform read from object on " << key.to_string_view() << std::endl;
         throw std::runtime_error("rados_backend::get : No such file or directory");
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
+        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
     }
 
     if (object_size > value.capacity()) {
         throw std::out_of_range("rados_backend::get : capacity of value slice is not enough");
     }
 
-    ret = io_ctx.read(key.data(), buffer_list, value.capacity(), 0); // number of bytes read on success, negative error code on failure
+    ret = io_ctx.read(key.to_string(), buffer_list, value.capacity(), 0); // number of bytes read on success, negative error code on failure
     if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.data() << std::endl;
+        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.to_string_view() << std::endl;
         throw std::runtime_error("rados_backend::get : No such file or directory");
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
+        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
     }
 
     value.set_size(ret);
@@ -114,12 +114,12 @@ ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, off_t offs
         throw std::out_of_range("rados_backend::get : returned object size exceeds capacity of value slice");
     }
 
-    ret = io_ctx.read(key.data(), buffer_list, length, offset); // number of bytes read on success, negative error code on failure
+    ret = io_ctx.read(key.to_string(), buffer_list, length, offset); // number of bytes read on success, negative error code on failure
     if (ret < 0) {
-        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.data() << std::endl;
+        std::cerr << "rados_backend::get : Cannot perform partial read from object on " << key.to_string_view() << std::endl;
         exit(EXIT_FAILURE);
     } else {
-        std::cout << "rados_backend::get : Successfully write the object on " << key.data() << std::endl;
+        std::cout << "rados_backend::get : Successfully write the object on " << key.to_string_view() << std::endl;
     }
 
     value.set_size(ret);
@@ -130,15 +130,12 @@ ssize_t nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, const nmfs
     librados::bufferlist write_buffer = librados::bufferlist::static_from_mem(const_cast<char*>(value.data()), value.size());
     int ret;
 
-    //ret = io_ctx.write_full(key.data(), write_buffer); // 0 on success, negative error code on failure
-
-    std::string key_str((const char*) key.data(), key.size());
-    ret = io_ctx.write_full(key_str.c_str(), write_buffer); // 0 on success, negative error code on failure
+    ret = io_ctx.write_full(key.to_string(), write_buffer); // 0 on success, negative error code on failure
     if (ret < 0) {
-        std::cerr << "rados_backend::put : Cannot perform fully write in object on " << key_str << std::endl;
+        std::cerr << "rados_backend::put : Cannot perform fully write in object on " << key.to_string_view() << std::endl;
         exit(EXIT_FAILURE);
     } else {
-        std::cout << "rados_backend::put : Successfully write the object on " << key_str << std::endl;
+        std::cout << "rados_backend::put : Successfully write the object on " << key.to_string_view() << std::endl;
     }
 
     return ret;
@@ -148,15 +145,12 @@ ssize_t nmfs::kv_backends::rados_backend::put(const nmfs::slice& key, off_t offs
     librados::bufferlist buffer_list = librados::bufferlist::static_from_mem(const_cast<char*>(value.data()), value.size());
     int ret;
 
-    //ret = io_ctx.write(key.data(), buffer_list, value.size(), offset);
-
-    std::string key_str((const char*) key.data(), key.size());
-    ret = io_ctx.write(key_str.c_str(), buffer_list, value.size(), offset);
+    ret = io_ctx.write(key.to_string(), buffer_list, value.size(), offset);
     if (ret < 0) {
-        std::cerr << "rados_backend::put : Cannot perform partial write in object on " << key_str << std::endl;
+        std::cerr << "rados_backend::put : Cannot perform partial write in object on " << key.to_string_view() << std::endl;
         exit(EXIT_FAILURE);
     } else {
-        std::cout << "rados_backend::put : Successfully write the object on" << key_str << "offset : " << offset << std::endl;
+        std::cout << "rados_backend::put : Successfully write the object on" << key.to_string_view() << "offset : " << offset << std::endl;
     }
 
     return ret;
@@ -167,18 +161,18 @@ bool nmfs::kv_backends::rados_backend::exist(const nmfs::slice& key) {
     time_t object_mtime;
     int ret;
 
-    ret = io_ctx.stat(key.data(), &object_size, &object_mtime); // 0 on success, negative error code on failure
+    ret = io_ctx.stat(key.to_string(), &object_size, &object_mtime); // 0 on success, negative error code on failure
     return ret == 0;
 }
 
 void nmfs::kv_backends::rados_backend::remove(const nmfs::slice& key) {
     int ret;
 
-    ret = io_ctx.remove(key.data());
+    ret = io_ctx.remove(key.to_string());
     if (ret < 0) {
-        std::cerr << "rados_backend::remove : Cannot perform removing object on " << key.data() << std::endl;
+        std::cerr << "rados_backend::remove : Cannot perform removing object on " << key.to_string_view() << std::endl;
         exit(EXIT_FAILURE);
     } else {
-        std::cout << "rados_backend::remove : Successfully remove the object on" << key.data() << "offset : " << std::endl;
+        std::cout << "rados_backend::remove : Successfully remove the object on" << key.to_string_view() << "offset : " << std::endl;
     }
 }
