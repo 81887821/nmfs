@@ -4,6 +4,8 @@
 #include "utils/data_object_key.hpp"
 #include "super_object.hpp"
 #include "../kv_backends/exceptions/key_does_not_exist.hpp"
+#include "../logger/log.hpp"
+#include "../logger/write_bytes.hpp"
 
 using namespace nmfs::structures;
 
@@ -41,6 +43,9 @@ metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata
 }
 
 ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) {
+    log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(size = " << size_to_write << ", offset = " << offset << ")\n";
+    log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer, size_to_write) << '\n';
+
     auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
     auto offset_in_object = static_cast<uint32_t>(offset % context.maximum_object_size);
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
@@ -66,6 +71,8 @@ ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) 
 }
 
 ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
+    log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(size = " << size_to_read << ", offset = " << offset << ")\n";
+
     auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
     auto offset_in_object = static_cast<uint32_t>(offset % context.maximum_object_size);
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
@@ -96,10 +103,14 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
         buffer += size_to_read_in_object;
     }
 
+    log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer, size_to_read) << '\n';
+
     return size_to_read;
 }
 
 void metadata::truncate(off_t new_size) {
+    log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(new_size = " << new_size << ")\n";
+
     if (new_size != size) {
         if (new_size < size) {
             auto first_index = static_cast<uint32_t>(new_size / context.maximum_object_size + new_size % context.maximum_object_size? 1 : 0);

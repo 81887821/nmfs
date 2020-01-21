@@ -50,6 +50,7 @@ add_executable(nmfs
         logger/log_locations.hpp
         logger/log_levels.hpp
         logger/log_stream.hpp
+        logger/write_bytes.hpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

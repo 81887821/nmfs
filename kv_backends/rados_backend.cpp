@@ -5,6 +5,7 @@
 #include "exceptions/backend_initialization_failure.hpp"
 #include "exceptions/key_does_not_exist.hpp"
 #include "../logger/log.hpp"
+#include "../logger/write_bytes.hpp"
 
 using namespace nmfs::kv_backends::exceptions;
 

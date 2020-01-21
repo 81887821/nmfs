@@ -11,8 +11,10 @@ enum log_locations: uint32_t {
     fuse_operation = 0x4,
     directory_operation = 0x8,
     file_data_operation = 0x10,
+    file_data_content = 0x20,
 
-    all = other | kv_backend_operation | fuse_operation | directory_operation | file_data_operation,
+    all_except_content = other | kv_backend_operation | fuse_operation | directory_operation | file_data_operation,
+    all = all_except_content | file_data_content,
 };
 
 constexpr const char* to_string(log_locations location) {
@@ -27,6 +29,8 @@ constexpr const char* to_string(log_locations location) {
             return "directory";
         case file_data_operation:
             return "file_data";
+        case file_data_content:
+            return "file_data_content";
         default:
             return "combined_locations";
     }
