@@ -25,18 +25,19 @@ public:
     struct timespec atime;
     struct timespec mtime;
     struct timespec ctime;
-    bool dirty = false;
+    mutable bool dirty = false;
 
     metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
     metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure);
+    inline ~metadata();
 
     ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
-    ssize_t read(byte* buffer, size_t size_to_read, off_t offset);
+    ssize_t read(byte* buffer, size_t size_to_read, off_t offset) const;
     void truncate(off_t new_size);
     /**
      * Write local metadata contents to backend
      */
-    void flush();
+    void flush() const;
     /**
      * Discard local metadata contents and reload from backend
      */
@@ -46,6 +47,10 @@ private:
     [[nodiscard]] constexpr on_disk::metadata to_on_disk_structure() const;
     void remove_data_objects(uint32_t index_from, uint32_t index_to);
 };
+
+inline metadata::~metadata() {
+    flush();
+}
 
 constexpr on_disk::metadata metadata::to_on_disk_structure() const {
     return {

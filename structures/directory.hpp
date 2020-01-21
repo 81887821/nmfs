@@ -16,6 +16,7 @@ public:
     metadata& directory_metadata;
 
     explicit inline directory(metadata& metadata);
+    inline ~directory();
 
     inline void add_file(typename indexing::directory_content_type content);
     inline void remove_file(const typename indexing::directory_content_type& content);
@@ -25,13 +26,17 @@ public:
 private:
     std::set<typename indexing::directory_content_type> files;
     size_t size;
+    mutable bool dirty;
 
     [[nodiscard]] inline std::unique_ptr<byte[]> serialize() const;
     inline void parse(std::unique_ptr<byte[]> buffer);
 };
 
 template<typename indexing>
-inline directory<indexing>::directory(nmfs::structures::metadata& metadata): directory_metadata(metadata), size(sizeof(on_disk_size_type)) {
+inline directory<indexing>::directory(nmfs::structures::metadata& metadata)
+    : directory_metadata(metadata),
+      size(sizeof(on_disk_size_type)),
+      dirty(metadata.size == 0) {
     if (!S_ISDIR(metadata.mode)) {
         throw nmfs::exceptions::is_not_directory();
     } else if (metadata.size > 0) {
@@ -43,27 +48,37 @@ inline directory<indexing>::directory(nmfs::structures::metadata& metadata): dir
 }
 
 template<typename indexing>
+inline directory<indexing>::~directory() {
+    flush();
+}
+
+template<typename indexing>
 inline void directory<indexing>::add_file(typename indexing::directory_content_type content) {
     size_t content_size = indexing::get_content_size(content);
 
     files.emplace(std::move(content));
     size += content_size;
+    dirty = true;
 }
 
 template<typename indexing>
 inline void directory<indexing>::remove_file(const typename indexing::directory_content_type& content) {
     if (files.erase(content)) {
         size -= indexing::get_content_size(content);
+        dirty = true;
     }
 }
 
 template<typename indexing>
 inline void directory<indexing>::flush() const {
-    if (size < directory_metadata.size) {
-        directory_metadata.truncate(size);
+    if (dirty) {
+        if (size < directory_metadata.size) {
+            directory_metadata.truncate(size);
+        }
+        directory_metadata.write(serialize().get(), size, 0);
+        directory_metadata.flush();
+        dirty = false;
     }
-    directory_metadata.write(serialize().get(), size, 0);
-    directory_metadata.flush();
 }
 
 template<typename indexing>

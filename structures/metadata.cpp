@@ -65,7 +65,7 @@ ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) 
     return size_to_write;
 }
 
-ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) {
+ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
     auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
     auto offset_in_object = static_cast<uint32_t>(offset % context.maximum_object_size);
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
@@ -109,13 +109,13 @@ void metadata::truncate(off_t new_size) {
     }
 }
 
-void metadata::flush() {
+void metadata::flush() const {
     if (dirty) {
         on_disk::metadata on_disk_structure = to_on_disk_structure();
         auto value = borrower_slice(&on_disk_structure, sizeof(on_disk_structure));
 
         context.backend->put(key, value);
-        dirty  = false;
+        dirty = false;
     }
 }
 
