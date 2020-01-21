@@ -69,9 +69,12 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
     auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
     auto offset_in_object = static_cast<uint32_t>(offset % context.maximum_object_size);
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
-    size_t remain_size_to_read = size_to_read;
 
-    // TODO: Error handling if (size_to_read + offset > size)
+    if (size_to_read + offset > size) {
+        size_to_read = size - offset;
+    }
+
+    size_t remain_size_to_read = size_to_read;
 
     while (remain_size_to_read > 0) {
         size_t size_to_read_in_object = std::min<size_t>(remain_size_in_object, remain_size_to_read);
