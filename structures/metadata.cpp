@@ -85,7 +85,7 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
 
     while (remain_size_to_read > 0) {
         size_t size_to_read_in_object = std::min<size_t>(remain_size_in_object, remain_size_to_read);
-        auto value = borrower_slice(buffer, remain_size_in_object);
+        auto value = borrower_slice(buffer, size_to_read_in_object);
         ssize_t read_size;
 
         try {
@@ -103,7 +103,7 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
         buffer += size_to_read_in_object;
     }
 
-    log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer, size_to_read) << '\n';
+    log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer - size_to_read, size_to_read) << '\n';
 
     return size_to_read;
 }
