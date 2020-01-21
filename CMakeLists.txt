@@ -46,6 +46,10 @@ add_executable(nmfs
         exceptions/file_does_not_exist.hpp
         exceptions/file_already_exists.hpp
         exceptions/is_not_directory.hpp
+        logger/log.hpp
+        logger/log_locations.hpp
+        logger/log_levels.hpp
+        logger/log_stream.hpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

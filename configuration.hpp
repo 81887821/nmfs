@@ -3,6 +3,8 @@
 
 #include "structures/indexing_types/full_path.hpp"
 #include "local_caches/caching_policy/evict_on_last_close.hpp"
+#include "logger/log_levels.hpp"
+#include "logger/log_locations.hpp"
 
 namespace nmfs::configuration {
 

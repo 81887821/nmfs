@@ -14,6 +14,7 @@
 #include "structures/metadata.hpp"
 #include "structures/super_object.hpp"
 #include "exceptions/file_does_not_exist.hpp"
+#include "logger/log.hpp"
 
 using namespace nmfs;
 
@@ -21,7 +22,7 @@ static const std::string_view root_path = std::string_view("/");
 
 void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_config* config) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : init" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "()\n";
 #endif
     auto connect_information = kv_backends::rados_backend::connect_information {};
     auto backend = std::make_unique<kv_backends::rados_backend>(connect_information);
@@ -44,32 +45,32 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
 
 void nmfs::fuse_operations::destroy(void* private_data) {
 #ifdef DEBUG
-    std::cout << "__function__call : delete" << std::endl;
+    log::information(log_locations::fuse_operation) << __func__ << "()\n";
 #endif
     auto super_object = reinterpret_cast<structures::super_object*>(private_data);
     delete super_object;
 #ifdef DEBUG
-    std::cout << "Terminate nmFS successfully." << std::endl;
+    log::information(log_locations::fuse_operation) << "Terminate nmFS successfully.\n";
 #endif
 }
 
 int nmfs::fuse_operations::statfs(const char* path, struct statvfs* stat) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : statfs" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     return 0;
 }
 
 int nmfs::fuse_operations::flush(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : flush" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     return 0;
 }
 
 int nmfs::fuse_operations::fsync(const char* path, int data_sync, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : fsync" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", data_sync = " << data_sync << ")\n";
 #endif
 
     fuse_context* fuse_context = fuse_get_context();
@@ -89,14 +90,14 @@ int nmfs::fuse_operations::fsync(const char* path, int data_sync, struct fuse_fi
 
 int nmfs::fuse_operations::fsyncdir(const char* path, int data_sync, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : fsyncdir" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", data_sync = " << data_sync << ")\n";
 #endif
     return 0;
 }
 
 int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : create" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", mode = 0" << std::oct << mode << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
@@ -110,7 +111,7 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         std::string file_name = get_filename(path);
 
         auto& directory = super_object.cache.open_directory(current_directory);
-        std::cout << "add " << file_name << " to " << current_directory << '\n';
+        log::information(log_locations::directory_operation) << "add " << file_name << " to " << current_directory << '\n';
         directory.add_file(file_name);
 
         directory.flush();
@@ -126,7 +127,7 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
 
 int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : getattr" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -157,7 +158,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
 
 int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : open" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
@@ -176,7 +177,7 @@ int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_in
 
 int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : mkdir" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", mode = 0" << std::oct << mode << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
@@ -205,7 +206,7 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
 
 int nmfs::fuse_operations::rmdir(const char* path) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : rmdir" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
@@ -232,7 +233,7 @@ int nmfs::fuse_operations::rmdir(const char* path) {
 
 int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t size, off_t offset, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : write" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", size = 0x" << std::hex << size << ", offset = 0x" << offset << ")\n";
 #endif
     ssize_t written_size;
     fuse_context* fuse_context = fuse_get_context();
@@ -263,14 +264,14 @@ int nmfs::fuse_operations::write_buf(const char* path, struct fuse_bufvec* buffe
 
 int nmfs::fuse_operations::fallocate(const char* path, int mode, off_t offset, off_t length, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : fallocate" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", offset = 0x" << std::hex << offset << ", length = 0x" << length << ")\n";
 #endif
     return 0;
 }
 
 int nmfs::fuse_operations::unlink(const char* path) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : unlink" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -289,7 +290,7 @@ int nmfs::fuse_operations::unlink(const char* path) {
 
 int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, unsigned int flags) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : rename" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(old_path = " << old_path << ", new_path = " << new_path << ", flags = " << flags << ")\n";
 #endif
 
     return 0;
@@ -297,7 +298,7 @@ int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, un
 
 int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : chmod" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", mode = 0" << std::oct << mode << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -322,7 +323,7 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
 
 int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : chown" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path <<  ", uid = " << uid << ", gid = " << gid << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -347,7 +348,7 @@ int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct 
 
 int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : truncate" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", length = 0x" << std::hex << length << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -364,7 +365,7 @@ int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_
 
 int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off_t offset, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : read" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", size = 0x" << std::hex << size << ", offset = 0x" << offset << ")\n";
 #endif
 
     ssize_t read_size;
@@ -392,7 +393,7 @@ int nmfs::fuse_operations::read_buf(const char* path, struct fuse_bufvec** buffe
 
 int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : opendir" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -414,7 +415,7 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
 
 int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* file_info, enum fuse_readdir_flags readdir_flags) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : readdir" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -443,14 +444,14 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
 
 int nmfs::fuse_operations::access(const char* path, int mask) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : access" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", mask = 0" << std::oct << mask << ")\n";
 #endif
     return 0;
 }
 
 int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : release" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -465,7 +466,7 @@ int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file
 
 int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* file_info) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : releasedir" << '\n';
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ")\n";
 #endif
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
@@ -478,9 +479,10 @@ int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* f
     return 0;
 }
 
-int nmfs::fuse_operations::utimens(const char*, const struct timespec tv[2], struct fuse_file_info* fi) {
+int nmfs::fuse_operations::utimens(const char* path, const struct timespec tv[2], struct fuse_file_info* fi) {
 #ifdef DEBUG
-    std::cout << '\n' << "__function__call : utimens" << '\n';
+    // TODO: print struct timespec
+    log::information(log_locations::fuse_operation) << __func__ << "(path = " << path << ", tv[0], tv[1]" << ")\n";
 #endif
 
     return 0;
