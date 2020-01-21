@@ -23,9 +23,14 @@ public:
     cache_store<configuration::indexing_type, configuration::caching_policy> cache;
 
     explicit inline super_object(std::unique_ptr<kv_backend> backend);
+    inline ~super_object();
 };
 
 inline super_object::super_object(std::unique_ptr<kv_backend> backend): backend(std::move(backend)), cache(*this) {
+}
+
+inline super_object::~super_object() {
+    cache.flush_all();
 }
 
 }

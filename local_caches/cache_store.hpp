@@ -32,6 +32,8 @@ public:
     inline directory<indexing>& create_directory(const std::string_view& path, uid_t owner, gid_t group, mode_t mode);
     inline void close_directory(const std::string_view& path, directory<indexing>& directory);
 
+    inline void flush_all() const;
+
 private:
     super_object& context;
     std::map<std::string, metadata, std::less<>> cache;
@@ -166,6 +168,17 @@ void cache_store<indexing, caching_policy>::close_directory(const std::string_vi
         } else {
             // TODO: Error handling - there is no cache with given path
         }
+    }
+}
+
+template<typename indexing, typename caching_policy>
+void cache_store<indexing, caching_policy>::flush_all() const {
+    for (const auto& directory: directory_cache) {
+        directory.second.flush();
+    }
+
+    for (const auto& metadata: cache) {
+        metadata.second.flush();
     }
 }
 
