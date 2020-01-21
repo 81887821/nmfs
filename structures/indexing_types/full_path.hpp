@@ -35,7 +35,7 @@ public:
         on_disk_size_type file_name_length = *reinterpret_cast<on_disk_size_type*>(buffer);
         auto file_name = std::string(&buffer[sizeof(on_disk_size_type)], file_name_length);
 
-        return std::make_tuple(file_name, file_name_length);
+        return std::make_tuple(std::move(file_name), sizeof(on_disk_size_type) + file_name_length);
     }
 
     static inline size_t get_content_size(const directory_content_type& content) {
