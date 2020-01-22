@@ -212,24 +212,29 @@ int nmfs::fuse_operations::rmdir(const char* path) {
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        structures::metadata& directory_metadata = super_object.cache.open(path);
+        auto& directory = super_object.cache.open_directory(path);
 
-        if (!S_ISDIR(directory_metadata.mode)) {
-            return -ENOTDIR;
-        } else if (directory_metadata.size > 0) {
+        if (directory.number_of_files() > 0) {
+            super_object.cache.close_directory(path, directory);
             return -ENOTEMPTY;
         } else {
-            //directory.delete();
-        }
+            std::string_view parent_path = get_parent_directory(path);
+            auto& parent_directory = super_object.cache.open_directory(parent_path);
 
-        return 0;
+            parent_directory.remove_file(get_filename(path));
+            super_object.cache.close_directory(parent_path, parent_directory);
+
+            super_object.cache.remove_directory(path, directory);
+            return 0;
+        }
+    } catch (nmfs::exceptions::is_not_directory&) {
+        return -ENOTDIR;
     } catch (nmfs::exceptions::file_does_not_exist&) {
         return -ENOENT;
     } catch (std::exception&) {
         return -EIO;
     }
 }
-
 
 int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t size, off_t offset, struct fuse_file_info* file_info) {
 #ifdef DEBUG
@@ -278,14 +283,21 @@ int nmfs::fuse_operations::unlink(const char* path) {
 
     try {
         auto& metadata = super_object->cache.open(path);
-        // remove data blocks
-        // metadata.delete();
 
-    } catch (std::runtime_error& e) {
-        // TODO
+        std::string_view parent_directory_path = get_parent_directory(path);
+        auto& directory = super_object->cache.open_directory(parent_directory_path);
+
+        directory.remove_file(get_filename(path));
+        super_object->cache.close_directory(parent_directory_path, directory);
+
+        super_object->cache.remove(path, metadata);
+
+        return 0;
+    } catch (nmfs::exceptions::file_does_not_exist&) {
+        return -ENOENT;
+    } catch (std::exception&) {
+        return -EIO;
     }
-
-    return 0;
 }
 
 int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, unsigned int flags) {

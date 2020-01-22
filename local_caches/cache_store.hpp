@@ -27,10 +27,12 @@ public:
     inline metadata& create(std::string_view path, uid_t owner, gid_t group, mode_t mode);
     inline void close(std::string_view path, metadata& metadata);
     inline void drop_if_policy_requires(std::string_view path, metadata& metadata);
+    inline void remove(std::string_view path, metadata& metadata);
 
     inline directory<indexing>& open_directory(std::string_view path);
     inline directory<indexing>& create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
     inline void close_directory(std::string_view path, directory<indexing>& directory);
+    inline void remove_directory(std::string_view path, directory<indexing>& directory);
 
     inline void flush_all() const;
 
@@ -43,6 +45,7 @@ private:
 }
 
 #include "../structures/super_object.hpp"
+#include "../logger/log.hpp"
 
 namespace nmfs {
 
@@ -119,6 +122,18 @@ void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_
 }
 
 template<typename indexing, typename caching_policy>
+void cache_store<indexing, caching_policy>::remove(std::string_view path, metadata& metadata) {
+    metadata.open_count--;
+
+    if (metadata.open_count > 0) {
+        log::warning(log_locations::cache_store_operation) << __func__ << "(path = " << path << "): Removing opened metadata. open_count = " << metadata.open_count << '\n';
+    }
+
+    metadata.remove();
+    cache.erase(cache.find(path));
+}
+
+template<typename indexing, typename caching_policy>
 directory<indexing>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
     auto iterator = directory_cache.find(path);
 
@@ -169,6 +184,19 @@ void cache_store<indexing, caching_policy>::close_directory(std::string_view pat
             // TODO: Error handling - there is no cache with given path
         }
     }
+}
+
+template<typename indexing, typename caching_policy>
+void cache_store<indexing, caching_policy>::remove_directory(std::string_view path, directory <indexing>& directory) {
+    metadata& directory_metadata = directory.directory_metadata;
+    directory_metadata.open_count--;
+
+    if (directory_metadata.open_count > 0) {
+        log::warning(log_locations::cache_store_operation) << __func__ << "(path = " << path << "): Removing opened directory. open_count = " << directory_metadata.open_count << '\n';
+    }
+
+    directory.remove();
+    directory_cache.erase(directory_cache.find(path));
 }
 
 template<typename indexing, typename caching_policy>

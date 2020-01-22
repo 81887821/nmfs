@@ -23,6 +23,8 @@ public:
     inline void remove_file(std::string_view file_name);
     inline void flush() const;
     inline void fill_buffer(const fuse_directory_filler& filler);
+    [[nodiscard]] constexpr size_t number_of_files() const;
+    inline void remove();
 
 private:
     std::set<typename indexing::directory_content_type> files;
@@ -124,6 +126,17 @@ void directory<indexing>::fill_buffer(const fuse_directory_filler& filler) {
     for (const auto& content: files) {
         indexing::fill_content(content, filler);
     }
+}
+
+template<typename indexing>
+constexpr size_t directory<indexing>::number_of_files() const {
+    return files.size();
+}
+
+template<typename indexing>
+void directory<indexing>::remove() {
+    directory_metadata.remove();
+    dirty = false;
 }
 
 }

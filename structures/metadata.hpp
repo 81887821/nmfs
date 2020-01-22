@@ -42,6 +42,7 @@ public:
      * Discard local metadata contents and reload from backend
      */
     void reload();
+    void remove();
 
 private:
     [[nodiscard]] constexpr on_disk::metadata to_on_disk_structure() const;

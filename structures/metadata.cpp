@@ -149,3 +149,11 @@ void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
 void metadata::reload() {
     // TODO
 }
+
+void metadata::remove() {
+    log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "()\n";
+
+    remove_data_objects(0, size / context.maximum_object_size);
+    context.backend->remove(key);
+    dirty = false;
+}
