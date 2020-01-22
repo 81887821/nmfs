@@ -318,7 +318,7 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
-        mode_t file_type = mode | S_IFMT;
+        mode_t file_type = mode & S_IFMT;
         metadata.mode = mode | file_type;
         metadata.dirty = true;
 
