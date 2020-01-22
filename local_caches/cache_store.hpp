@@ -23,14 +23,14 @@ class cache_store {
 public:
     explicit cache_store(super_object& context);
 
-    inline metadata& open(const std::string_view& path);
-    inline metadata& create(const std::string_view& path, uid_t owner, gid_t group, mode_t mode);
-    inline void close(const std::string_view& path, metadata& metadata);
-    inline void drop_if_policy_requires(const std::string_view& path, metadata& metadata);
+    inline metadata& open(std::string_view path);
+    inline metadata& create(std::string_view path, uid_t owner, gid_t group, mode_t mode);
+    inline void close(std::string_view path, metadata& metadata);
+    inline void drop_if_policy_requires(std::string_view path, metadata& metadata);
 
-    inline directory<indexing>& open_directory(const std::string_view& path);
-    inline directory<indexing>& create_directory(const std::string_view& path, uid_t owner, gid_t group, mode_t mode);
-    inline void close_directory(const std::string_view& path, directory<indexing>& directory);
+    inline directory<indexing>& open_directory(std::string_view path);
+    inline directory<indexing>& create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
+    inline void close_directory(std::string_view path, directory<indexing>& directory);
 
     inline void flush_all() const;
 
@@ -51,7 +51,7 @@ cache_store<indexing, caching_policy>::cache_store(super_object& context): conte
 }
 
 template<typename indexing, typename caching_policy>
-inline metadata& cache_store<indexing, caching_policy>::open(const std::string_view& path) {
+inline metadata& cache_store<indexing, caching_policy>::open(std::string_view path) {
     auto iterator = cache.find(path);
 
     if (iterator != cache.end()) {
@@ -81,7 +81,7 @@ inline metadata& cache_store<indexing, caching_policy>::open(const std::string_v
 }
 
 template<typename indexing, typename caching_policy>
-metadata& cache_store<indexing, caching_policy>::create(const std::string_view& path, uid_t owner, gid_t group, mode_t mode) {
+metadata& cache_store<indexing, caching_policy>::create(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
     if (cache.contains(path)) {
         throw nmfs::exceptions::file_already_exist(path);
     } else {
@@ -100,13 +100,13 @@ metadata& cache_store<indexing, caching_policy>::create(const std::string_view& 
 }
 
 template<typename indexing, typename caching_policy>
-inline void cache_store<indexing, caching_policy>::close(const std::string_view& path, metadata& metadata) {
+inline void cache_store<indexing, caching_policy>::close(std::string_view path, metadata& metadata) {
     metadata.open_count--;
     drop_if_policy_requires(path, metadata);
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::drop_if_policy_requires(const std::string_view& path, metadata& metadata) {
+void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, metadata& metadata) {
     if (!caching_policy::keep_cache(context, metadata)) {
         auto iterator = cache.find(path);
         if (iterator != cache.end()) {
@@ -119,7 +119,7 @@ void cache_store<indexing, caching_policy>::drop_if_policy_requires(const std::s
 }
 
 template<typename indexing, typename caching_policy>
-directory<indexing>& cache_store<indexing, caching_policy>::open_directory(const std::string_view& path) {
+directory<indexing>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
     auto iterator = directory_cache.find(path);
 
     if (iterator != directory_cache.end()) {
@@ -144,7 +144,7 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(const
 }
 
 template<typename indexing, typename caching_policy>
-directory<indexing>& cache_store<indexing, caching_policy>::create_directory(const std::string_view& path, uid_t owner, gid_t group, mode_t mode) {
+directory<indexing>& cache_store<indexing, caching_policy>::create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
     // If directory exists, an exception will be thrown from create
     metadata& directory_metadata = create(path, owner, group, mode);
     auto emplace_result = directory_cache.emplace(std::make_pair(
@@ -155,7 +155,7 @@ directory<indexing>& cache_store<indexing, caching_policy>::create_directory(con
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::close_directory(const std::string_view& path, directory <indexing>& directory) {
+void cache_store<indexing, caching_policy>::close_directory(std::string_view path, directory <indexing>& directory) {
     metadata& directory_metadata = directory.directory_metadata;
     directory_metadata.open_count--;
 

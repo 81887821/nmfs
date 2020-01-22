@@ -1,7 +1,7 @@
 #include "utils.hpp"
 #include "memory_slices/borrower_slice.hpp"
 
-std::string nmfs::get_parent_directory(const std::string& path) {
+std::string_view nmfs::get_parent_directory(std::string_view path) {
     if (path.empty()) {
         throw std::runtime_error("Invalid path: path is empty string");
     } else {
@@ -19,7 +19,7 @@ std::string nmfs::get_parent_directory(const std::string& path) {
     }
 }
 
-std::string nmfs::get_filename(const std::string& path) {
+std::string_view nmfs::get_filename(std::string_view path) {
     if (path.empty()) {
         throw std::runtime_error("Invalid path: path is empty string");
     } else {

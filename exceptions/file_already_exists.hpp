@@ -9,11 +9,11 @@ namespace nmfs::exceptions {
 
 class file_already_exist: public nmfs_exceptions {
 public:
-    inline explicit file_already_exist(const std::string_view& file_name);
+    inline explicit file_already_exist(std::string_view file_name);
     inline explicit file_already_exist(const std::string& file_name);
 };
 
-file_already_exist::file_already_exist(const std::string_view& file_name): nmfs_exceptions("File already exists: " + std::string(file_name)) {
+file_already_exist::file_already_exist(std::string_view file_name): nmfs_exceptions("File already exists: " + std::string(file_name)) {
 }
 
 file_already_exist::file_already_exist(const std::string& file_name): nmfs_exceptions("File already exists: " + file_name) {

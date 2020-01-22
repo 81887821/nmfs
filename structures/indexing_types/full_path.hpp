@@ -18,7 +18,7 @@ public:
     using slice_type = nmfs::borrower_slice;
     using directory_content_type = std::string;
 
-    static inline slice_type make_key(super_object& context, const std::string_view& path) {
+    static inline slice_type make_key(super_object& context, std::string_view path) {
         DECLARE_CONST_BORROWER_SLICE(slice, path.data(), path.size());
         return slice;
     }

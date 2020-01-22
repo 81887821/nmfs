@@ -19,8 +19,8 @@ public:
     explicit inline directory(metadata& metadata);
     inline ~directory();
 
-    inline void add_file(const std::string& file_name, const metadata& metadata);
-    inline void remove_file(const std::string& file_name);
+    inline void add_file(std::string_view file_name, const metadata& metadata);
+    inline void remove_file(std::string_view file_name);
     inline void flush() const;
     inline void fill_buffer(const fuse_directory_filler& filler);
 
@@ -54,7 +54,7 @@ inline directory<indexing>::~directory() {
 }
 
 template<typename indexing>
-inline void directory<indexing>::add_file(const std::string& file_name, const metadata& metadata) {
+inline void directory<indexing>::add_file(std::string_view file_name, const metadata& metadata) {
     auto content = indexing::to_directory_content(file_name, metadata);
     size_t content_size = indexing::get_content_size(content);
 
@@ -64,7 +64,7 @@ inline void directory<indexing>::add_file(const std::string& file_name, const me
 }
 
 template<typename indexing>
-inline void directory<indexing>::remove_file(const std::string& file_name) {
+inline void directory<indexing>::remove_file(std::string_view file_name) {
     auto iterator = std::find_if(files.begin(), files.end(), indexing::content_finder_by_name(file_name));
 
     if (iterator != files.end()) {
