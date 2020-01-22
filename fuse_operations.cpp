@@ -320,6 +320,7 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
 
         mode_t file_type = mode | S_IFMT;
         metadata.mode = mode | file_type;
+        metadata.dirty = true;
 
         if (!file_info) {
             super_object->cache.close(path, metadata);
@@ -345,6 +346,7 @@ int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct 
 
         metadata.owner = uid;
         metadata.group = gid;
+        metadata.dirty = true;
 
         if (!file_info) {
             super_object->cache.close(path, metadata);
