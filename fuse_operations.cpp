@@ -112,7 +112,7 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
 
         auto& directory = super_object.cache.open_directory(current_directory);
         log::information(log_locations::directory_operation) << "add " << file_name << " to " << current_directory << '\n';
-        directory.add_file(file_name);
+        directory.add_file(file_name, metadata);
 
         directory.flush();
         return 0;
@@ -190,7 +190,7 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
         std::string new_directory_name = get_filename(path);
 
         auto& directory = super_object.cache.open_directory(parent_directory);
-        directory.add_file(new_directory_name);
+        directory.add_file(new_directory_name, new_directory.directory_metadata);
 
         directory.flush();
 

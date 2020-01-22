@@ -2,6 +2,7 @@
 #define NMFS_STRUCTURES_INDEXING_TYPES_FULL_PATH_HPP
 
 #include <algorithm>
+#include <functional>
 #include <string_view>
 #include <tuple>
 #include "../../primitive_types.hpp"
@@ -44,6 +45,16 @@ public:
 
     static inline int fill_content(const directory_content_type& content, const fuse_directory_filler& filler) {
         return filler(content.c_str());
+    }
+
+    static inline directory_content_type to_directory_content(std::string_view file_name, const metadata& metadata) {
+        return std::string(file_name);
+    }
+
+    static inline std::function<bool(const directory_content_type&)> content_finder_by_name(std::string_view file_name) {
+        return [file_name] (const directory_content_type& other) {
+            return file_name == other;
+        };
     }
 };
 

@@ -1,6 +1,7 @@
 #ifndef NMFS_STRUCTURES_INDEXING_TYPES_INDIRECTION_HPP
 #define NMFS_STRUCTURES_INDEXING_TYPES_INDIRECTION_HPP
 
+#include <functional>
 #include <string_view>
 #include "../super_object.hpp"
 #include "../../memory_slices/owner_slice.hpp"
@@ -29,6 +30,14 @@ class indirection {
     }
 
     static inline int fill_content(const directory_content_type& content, const fuse_directory_filler& filler) {
+        throw std::runtime_error("Not implemented");
+    }
+
+    static inline directory_content_type to_directory_content(std::string_view file_name, const metadata& metadata) {
+        throw std::runtime_error("Not implemented");
+    }
+
+    static inline std::function<bool(const directory_content_type&)> content_finder_by_name(std::string_view file_name) {
         throw std::runtime_error("Not implemented");
     }
 };
