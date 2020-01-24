@@ -111,7 +111,6 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         std::string_view file_name = get_filename(path);
 
         auto& parent_directory = super_object.cache.open_directory(parent_path);
-        log::information(log_locations::directory_operation) << "add " << file_name << " to " << parent_path << '\n';
         parent_directory.add_file(file_name, metadata);
 
         parent_directory.flush();
@@ -168,6 +167,7 @@ int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_in
     try {
         structures::metadata& metadata = super_object.cache.open(path);
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
+        log::information(log_locations::fuse_operation) << std::hex << std::showbase << __func__ << ": " << path << " = " << &metadata << '\n';
 
         return 0;
     } catch (nmfs::exceptions::file_does_not_exist&) {

@@ -8,6 +8,7 @@
 #include "../fuse.hpp"
 #include "metadata.hpp"
 #include "../exceptions/is_not_directory.hpp"
+#include "../logger/log.hpp"
 
 namespace nmfs::structures {
 
@@ -57,6 +58,8 @@ inline directory<indexing>::~directory() {
 
 template<typename indexing>
 inline void directory<indexing>::add_file(std::string_view file_name, const metadata& metadata) {
+    log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
+
     auto content = indexing::to_directory_content(file_name, metadata);
     size_t content_size = indexing::get_content_size(content);
 
@@ -67,6 +70,8 @@ inline void directory<indexing>::add_file(std::string_view file_name, const meta
 
 template<typename indexing>
 inline void directory<indexing>::remove_file(std::string_view file_name) {
+    log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
+
     auto iterator = std::find_if(files.begin(), files.end(), indexing::content_finder_by_name(file_name));
 
     if (iterator != files.end()) {
@@ -76,6 +81,8 @@ inline void directory<indexing>::remove_file(std::string_view file_name) {
 
 template<typename indexing>
 inline void directory<indexing>::flush() const {
+    log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
+
     if (dirty) {
         if (size < directory_metadata.size) {
             directory_metadata.truncate(size);
@@ -135,6 +142,8 @@ constexpr size_t directory<indexing>::number_of_files() const {
 
 template<typename indexing>
 void directory<indexing>::remove() {
+    log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
+
     directory_metadata.remove();
     dirty = false;
 }
