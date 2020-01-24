@@ -107,14 +107,14 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
 
         // add to directory
-        std::string_view current_directory = get_parent_directory(path);
+        std::string_view parent_path = get_parent_directory(path);
         std::string_view file_name = get_filename(path);
 
-        auto& directory = super_object.cache.open_directory(current_directory);
-        log::information(log_locations::directory_operation) << "add " << file_name << " to " << current_directory << '\n';
-        directory.add_file(file_name, metadata);
+        auto& parent_directory = super_object.cache.open_directory(parent_path);
+        log::information(log_locations::directory_operation) << "add " << file_name << " to " << parent_path << '\n';
+        parent_directory.add_file(file_name, metadata);
 
-        directory.flush();
+        parent_directory.flush();
         return 0;
     } catch (nmfs::exceptions::file_already_exist&) {
         return -EEXIST;
@@ -186,13 +186,13 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
         auto& new_directory = super_object.cache.create_directory(path, fuse_context->uid, fuse_context->gid, mode | S_IFDIR);
 
         // add to parent directory
-        std::string_view parent_directory = get_parent_directory(path);
+        std::string_view parent_path = get_parent_directory(path);
         std::string_view new_directory_name = get_filename(path);
 
-        auto& directory = super_object.cache.open_directory(parent_directory);
-        directory.add_file(new_directory_name, new_directory.directory_metadata);
+        auto& parent_directory = super_object.cache.open_directory(parent_path);
+        parent_directory.add_file(new_directory_name, new_directory.directory_metadata);
 
-        directory.flush();
+        parent_directory.flush();
 
         return 0;
     } catch (nmfs::exceptions::file_already_exist&) {
@@ -284,11 +284,11 @@ int nmfs::fuse_operations::unlink(const char* path) {
     try {
         auto& metadata = super_object->cache.open(path);
 
-        std::string_view parent_directory_path = get_parent_directory(path);
-        auto& directory = super_object->cache.open_directory(parent_directory_path);
+        std::string_view parent_path = get_parent_directory(path);
+        auto& parent_directory = super_object->cache.open_directory(parent_path);
 
-        directory.remove_file(get_filename(path));
-        super_object->cache.close_directory(parent_directory_path, directory);
+        parent_directory.remove_file(get_filename(path));
+        super_object->cache.close_directory(parent_path, parent_directory);
 
         super_object->cache.remove(path, metadata);
 
