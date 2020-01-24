@@ -80,6 +80,8 @@ inline void directory<indexing>::remove_file(std::string_view file_name) {
 
     if (iterator != files.end()) {
         files.erase(iterator);
+        size -= indexing::get_content_size(*iterator);
+        dirty = true;
     } else {
         log::warning(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << " failed: find_if returned files.end()";
     }
