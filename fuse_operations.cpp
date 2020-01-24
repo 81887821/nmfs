@@ -115,6 +115,8 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         parent_directory.add_file(file_name, metadata);
 
         parent_directory.flush();
+        super_object.cache.close_directory(parent_path, parent_directory);
+        // Create performs "create and open a file", so we don't close metadata here
         return 0;
     } catch (nmfs::exceptions::file_already_exist&) {
         return -EEXIST;
@@ -193,6 +195,8 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
         parent_directory.add_file(new_directory_name, new_directory.directory_metadata);
 
         parent_directory.flush();
+        super_object.cache.close_directory(parent_path, parent_directory);
+        super_object.cache.close_directory(path, new_directory);
 
         return 0;
     } catch (nmfs::exceptions::file_already_exist&) {
