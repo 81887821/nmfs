@@ -63,9 +63,13 @@ inline void directory<indexing>::add_file(std::string_view file_name, const meta
     auto content = indexing::to_directory_content(file_name, metadata);
     size_t content_size = indexing::get_content_size(content);
 
-    files.emplace(std::move(content));
-    size += content_size;
-    dirty = true;
+    auto result = files.emplace(std::move(content));
+    if (result.second) {
+        size += content_size;
+        dirty = true;
+    } else {
+        log::warning(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << " failed: files.emplace returned false";
+    }
 }
 
 template<typename indexing>
@@ -76,6 +80,8 @@ inline void directory<indexing>::remove_file(std::string_view file_name) {
 
     if (iterator != files.end()) {
         files.erase(iterator);
+    } else {
+        log::warning(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << " failed: find_if returned files.end()";
     }
 }
 
