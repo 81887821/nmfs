@@ -61,7 +61,6 @@ inline metadata& cache_store<indexing, caching_policy>::open(std::string_view pa
     auto iterator = cache.find(path);
 
     if (iterator != cache.end()) {
-        log::debug(log_locations::cache_store_operation) << __func__ << " for directory metadata(path = "<< path << " directory is in cache)\n";
         metadata& metadata = iterator->second;
 
         if (!caching_policy::is_valid(context, metadata)) {
@@ -79,10 +78,8 @@ inline metadata& cache_store<indexing, caching_policy>::open(std::string_view pa
                 std::string(path),
                 metadata(context, owner_slice(std::move(key)), on_disk_metadata)
             ));
-            log::debug(log_locations::cache_store_operation) << __func__ << " for directory metadata(dir caching complete)\n";
             return emplace_result.first->second;
         } catch (kv_backends::exceptions::key_does_not_exist& e) {
-            log::debug(log_locations::cache_store_operation) << __func__ << " for directory metadata(path = "<< path << " dir does not exist)\n";
             throw nmfs::exceptions::file_does_not_exist(path);
         }
     }
@@ -94,7 +91,6 @@ inline metadata& cache_store<indexing, caching_policy>::open(std::string_view pa
     auto iterator = cache.find(path);
     std::string *file_uuid;
     if (iterator != cache.end()) {
-        log::debug(log_locations::cache_store_operation) << __func__ << " for file metadata(path = "<< path << " file is in cache)\n";
         metadata& metadata = iterator->second;
 
         if (!caching_policy::is_valid(context, metadata)) {
@@ -103,14 +99,11 @@ inline metadata& cache_store<indexing, caching_policy>::open(std::string_view pa
         metadata.open_count++;
         return metadata;
     } else {
-        log::debug(log_locations::cache_store_operation) << __func__ << " for file metadata(parent_uuid = "<< parent_directory_uuid << " )\n";
         auto uuid_cache_iterator = uuid_cache.find(path);
         if(uuid_cache_iterator != uuid_cache.end()) {
-            log::debug(log_locations::cache_store_operation) << __func__ << " for file metadata(path = "<< path << " uuid is found in uuid cache)\n";
             file_uuid = &(uuid_cache_iterator->second);
         } else {
             // create new file_uuid
-            log::debug(log_locations::cache_store_operation) << __func__ << " for file metadata(path = "<< path << " create new file uuid)\n";
             file_uuid = new std::string(nmfs::generate_uuid());
             auto uuid_emplace_result = uuid_cache.emplace(std::make_pair(
                 std::string(path),
@@ -130,10 +123,8 @@ inline metadata& cache_store<indexing, caching_policy>::open(std::string_view pa
             if(S_ISREG(emplace_result.first->second.mode)) {
                 emplace_result.first->second.uuid = std::move(std::string(key.data(), key.size()));
             }
-            log::debug(log_locations::cache_store_operation) << __func__ << " for file metadata(file caching complete)\n";
             return emplace_result.first->second;
         } catch (kv_backends::exceptions::key_does_not_exist& e) {
-            log::debug(log_locations::cache_store_operation) << __func__ << " for file metadata(path = "<< path << " No such file)\n";
             throw nmfs::exceptions::file_does_not_exist(path);
         }
     }
@@ -151,23 +142,18 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
     } else {
         if(S_ISDIR(mode)) {
             //key = indexing::make_key(context, path);
-            log::debug(log_locations::cache_store_operation) << __func__ << "(S_ISDIR)\n";
         } else if (S_ISREG(mode)){
-            log::debug(log_locations::cache_store_operation) << __func__ << "(S_ISREG)\n";
             fuse_context* fuse_context = fuse_get_context();
             auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
             std::string_view parent_path = get_parent_directory(path);
             structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
 
-            log::debug(log_locations::cache_store_operation) << __func__ << "(parent_uuid = "<< parent_directory_metadata.uuid << " )\n";
             auto uuid_cache_iterator = uuid_cache.find(path);
             if(uuid_cache_iterator != uuid_cache.end()) {
-                log::debug(log_locations::cache_store_operation) << __func__ << " for file metadata(path = "<< path << " uuid is found in uuid cache)\n";
                 file_uuid = &(uuid_cache_iterator->second);
             } else {
                 // create new file_uuid
-                log::debug(log_locations::cache_store_operation) << __func__ << "(path = "<< path << " create new file_uuid)\n";
                 file_uuid = new std::string(nmfs::generate_uuid(), key.size());
                 auto uuid_emplace_result = uuid_cache.emplace(std::make_pair(
                     std::string(path),
@@ -178,9 +164,7 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
             key = indexing::make_key(context, path, parent_directory_metadata.uuid, *file_uuid);
         } // S_ISREG
 
-        log::information(log_locations::cache_store_operation) << __func__ <<  " created key = " << key.to_string_view() << "\n";
         if (context.backend->exist(key)) {
-            log::debug(log_locations::cache_store_operation) << __func__ << "(path = "<< path << " file alreadt exist)\n";
             throw nmfs::exceptions::file_already_exist(path);
         } else {
             auto emplace_result = cache.emplace(std::make_pair(
@@ -190,7 +174,6 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
             if(S_ISREG(mode)) {
                 emplace_result.first->second.uuid = std::string(key.data());
             }
-            log::debug(log_locations::cache_store_operation) << __func__ << "(path = "<< path << " create metadata)\n";
             return emplace_result.first->second;
         }
     }
@@ -225,11 +208,9 @@ void cache_store<indexing, caching_policy>::remove(std::string_view path, metada
     if (metadata.open_count > 0) {
         log::warning(log_locations::cache_store_operation) << __func__ << "(path = " << path << "): Removing opened metadata. open_count = " << metadata.open_count << '\n';
     }
-    log::information(log_locations::file_data_operation) << __func__ << metadata.uuid << "\n";
+
     metadata.remove();
-    log::information(log_locations::file_data_operation) << __func__ << "11111111111111111111111111111\n";
     cache.erase(cache.find(path));
-    log::information(log_locations::file_data_operation) << __func__ << "222222222222222222222222222222\n";
 }
 
 template<typename indexing, typename caching_policy>

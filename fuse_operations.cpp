@@ -170,21 +170,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
                 super_object->cache.close(path, metadata);
             }
         }
-        /*
-        std::memset(stat, 0, sizeof(struct stat));
-        stat->st_nlink = metadata.link_count;
-        stat->st_mode = metadata.mode;
-        stat->st_uid = metadata.owner;
-        stat->st_gid = metadata.group;
-        stat->st_size = metadata.size;
-        stat->st_atim = metadata.atime;
-        stat->st_mtim = metadata.mtime;
-        stat->st_ctim = metadata.ctime;
 
-        if (!file_info) {
-            super_object->cache.close(path, metadata);
-        }
-        */
         return 0;
     } catch (nmfs::exceptions::file_does_not_exist&) {
         return -ENOENT;
@@ -257,11 +243,9 @@ int nmfs::fuse_operations::rmdir(const char* path) {
         auto& directory = super_object.cache.open_directory(path);
 
         if (directory.number_of_files() > 0) {
-            log::information(log_locations::fuse_operation) << __func__ << " (directory is not empty)\n";
             super_object.cache.close_directory(path, directory);
             return -ENOTEMPTY;
         } else {
-            log::information(log_locations::fuse_operation) << __func__ << " (delete directory)\n";
             std::string_view parent_path = get_parent_directory(path);
             auto& parent_directory = super_object.cache.open_directory(parent_path);
 

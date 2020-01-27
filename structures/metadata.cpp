@@ -28,9 +28,6 @@ metadata::metadata(super_object& super, owner_slice key, uid_t owner, gid_t grou
     ctime = atime;
     if(S_ISDIR(mode)) {
         uuid = generate_uuid();
-        log::debug(log_locations::other) << __func__ << "(directory_UUID = " << uuid << ")\n";
-    } else {
-        log::debug(log_locations::other) << __func__ << "(file_UUID will be added in create())\n";
     }
     flush();
 }
