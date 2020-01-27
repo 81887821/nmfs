@@ -133,8 +133,44 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+        // if directory
+        try {
+            auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
+            std::memset(stat, 0, sizeof(struct stat));
+            stat->st_nlink = metadata.link_count;
+            stat->st_mode = metadata.mode;
+            stat->st_uid = metadata.owner;
+            stat->st_gid = metadata.group;
+            stat->st_size = metadata.size;
+            stat->st_atim = metadata.atime;
+            stat->st_mtim = metadata.mtime;
+            stat->st_ctim = metadata.ctime;
+
+            if (!file_info) {
+                super_object->cache.close(path, metadata);
+            }
+        } catch (nmfs::exceptions::file_does_not_exist& ) {
+            // if file
+            std::string_view parent_path = get_parent_directory(path);
+            structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
+            auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.uuid);
+
+            std::memset(stat, 0, sizeof(struct stat));
+            stat->st_nlink = metadata.link_count;
+            stat->st_mode = metadata.mode;
+            stat->st_uid = metadata.owner;
+            stat->st_gid = metadata.group;
+            stat->st_size = metadata.size;
+            stat->st_atim = metadata.atime;
+            stat->st_mtim = metadata.mtime;
+            stat->st_ctim = metadata.ctime;
+
+            if (!file_info) {
+                super_object->cache.close(path, metadata);
+            }
+        }
+        /*
         std::memset(stat, 0, sizeof(struct stat));
         stat->st_nlink = metadata.link_count;
         stat->st_mode = metadata.mode;
@@ -148,7 +184,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
         if (!file_info) {
             super_object->cache.close(path, metadata);
         }
-
+        */
         return 0;
     } catch (nmfs::exceptions::file_does_not_exist&) {
         return -ENOENT;
@@ -165,7 +201,9 @@ int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_in
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        structures::metadata& metadata = super_object.cache.open(path);
+        std::string_view parent_path = get_parent_directory(path);
+        structures::metadata& parent_directory_metadata = super_object.cache.open(parent_path);
+        structures::metadata& metadata = super_object.cache.open(path,parent_directory_metadata.uuid);
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
         log::information(log_locations::fuse_operation) << std::hex << std::showbase << __func__ << ": " << path << " = " << &metadata << '\n';
 
@@ -219,9 +257,11 @@ int nmfs::fuse_operations::rmdir(const char* path) {
         auto& directory = super_object.cache.open_directory(path);
 
         if (directory.number_of_files() > 0) {
+            log::information(log_locations::fuse_operation) << __func__ << " (directory is not empty)\n";
             super_object.cache.close_directory(path, directory);
             return -ENOTEMPTY;
         } else {
+            log::information(log_locations::fuse_operation) << __func__ << " (delete directory)\n";
             std::string_view parent_path = get_parent_directory(path);
             auto& parent_directory = super_object.cache.open_directory(parent_path);
 
@@ -249,7 +289,9 @@ int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t si
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+        std::string_view parent_path = get_parent_directory(path);
+        structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
+        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.uuid);
         if (!S_ISREG(metadata.mode)) {
             return -EBADF;
         }
@@ -286,10 +328,13 @@ int nmfs::fuse_operations::unlink(const char* path) {
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        auto& metadata = super_object->cache.open(path);
+
+        //auto& metadata = super_object->cache.open(path);
 
         std::string_view parent_path = get_parent_directory(path);
         auto& parent_directory = super_object->cache.open_directory(parent_path);
+
+        auto& metadata = super_object->cache.open(path, parent_directory.directory_metadata.uuid);
 
         parent_directory.remove_file(get_filename(path));
         super_object->cache.close_directory(parent_path, parent_directory);
@@ -391,7 +436,9 @@ int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
+        std::string_view parent_path = get_parent_directory(path);
+        structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
+        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.uuid);
         read_size = metadata.read(buffer, size, offset);
 
         if (!file_info) {

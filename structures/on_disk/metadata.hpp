@@ -12,6 +12,7 @@ struct metadata {
     struct timespec atime;
     struct timespec mtime;
     struct timespec ctime;
+    char uuid[73];
 };
 
 }

@@ -36,6 +36,7 @@ add_executable(nmfs
         local_caches/cache_store.hpp
         structures/indexing_types/full_path.hpp
         structures/indexing_types/indirection.hpp
+        structures/indexing_types/custom.hpp
         structures/super_object.fwd.hpp
         configuration.hpp
         kv_backends/exceptions/kv_backend_exception.hpp

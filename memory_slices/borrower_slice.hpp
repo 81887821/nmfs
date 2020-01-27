@@ -6,7 +6,7 @@
 #include <array>
 #include "slice.hpp"
 
-#define DECLARE_CONST_BORROWER_SLICE(instance_name, memory, size) const nmfs::borrower_slice instance_name(const_cast<void*>(static_cast<const void*>(memory)), size)
+#define DECLARE_CONST_BORROWER_SLICE(instance_name, memory, size) nmfs::borrower_slice instance_name(const_cast<void*>(static_cast<const void*>(memory)), size)
 
 namespace nmfs {
 

@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include "../primitive_types.hpp"
 #include "../memory_slices/owner_slice.hpp"
@@ -26,6 +27,7 @@ public:
     struct timespec mtime;
     struct timespec ctime;
     mutable bool dirty = false;
+    std::string uuid;
 
     metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
     metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure);

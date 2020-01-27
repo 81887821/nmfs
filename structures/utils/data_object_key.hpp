@@ -3,6 +3,8 @@
 
 #include <cstring>
 #include "../../memory_slices/owner_slice.hpp"
+#include "../../logger/log.hpp"
+#include "../../logger/write_bytes.hpp"
 
 namespace nmfs::structures::utils {
 
@@ -10,7 +12,7 @@ class data_object_key: public owner_slice {
 public:
     const char separator = static_cast<char>(0x1C);
 
-    inline data_object_key(const slice& base, uint32_t index);
+    inline data_object_key(const std::string& base, uint32_t index);
 
     inline void update_index(uint32_t new_index);
     inline void increase_index();
@@ -28,7 +30,7 @@ private:
     constexpr static uint32_t to_key_index(uint32_t index);
 };
 
-inline data_object_key::data_object_key(const slice& base, uint32_t index)
+inline data_object_key::data_object_key(const std::string& base, uint32_t index)
     : owner_slice(base.size() + sizeof(separator) + sizeof(index)),
       base_length(base.size()),
       index(index) {
@@ -38,6 +40,7 @@ inline data_object_key::data_object_key(const slice& base, uint32_t index)
 }
 
 inline void data_object_key::update_index(uint32_t new_index) {
+    log::information(log_locations::file_data_operation) << __func__ << "(" << new_index << ")\n";
     this->index = new_index;
     *reinterpret_cast<uint32_t*>(&memory[base_length + 1]) = to_key_index(index);
 }
