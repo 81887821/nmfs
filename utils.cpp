@@ -37,12 +37,10 @@ std::string_view nmfs::get_filename(std::string_view path) {
     }
 }
 
-std::string nmfs::generate_uuid() {
-    char uuid[37];
-    uuid_t generated_uuid;
+nmfs::owner_slice nmfs::generate_uuid() {
+    auto uuid = owner_slice(sizeof(uuid_t));
 
-    uuid_generate_random(generated_uuid);
-    uuid_unparse(generated_uuid, uuid);
+    uuid_generate_random(reinterpret_cast<uint8_t*>(uuid.data()));
 
-    return std::string(uuid);
+    return uuid;
 }
