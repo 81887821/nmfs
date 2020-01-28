@@ -32,12 +32,16 @@ add_executable(nmfs
         structures/utils/data_object_key.hpp
         fuse.hpp
         mapper.hpp
+        local_caches/caching_policy/all.hpp
+        local_caches/caching_policy/all.fwd.hpp
         local_caches/caching_policy/evict_on_last_close.hpp
+        local_caches/cache_store.fwd.hpp
         local_caches/cache_store.hpp
+        structures/indexing_types/all.hpp
+        structures/indexing_types/all.fwd.hpp
         structures/indexing_types/full_path.hpp
         structures/indexing_types/indirection.hpp
         structures/indexing_types/custom.hpp
-        structures/super_object.fwd.hpp
         configuration.hpp
         kv_backends/exceptions/kv_backend_exception.hpp
         kv_backends/exceptions/generic_kv_api_failure.hpp
@@ -53,6 +57,7 @@ add_executable(nmfs
         logger/log_levels.hpp
         logger/log_stream.hpp
         logger/write_bytes.hpp
+        structures/super_object.cpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

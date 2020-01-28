@@ -1,13 +1,12 @@
 #include <utility>
 #include "metadata.hpp"
-#include "../utils.hpp"
-#include "../memory_slices/borrower_slice.hpp"
-#include "utils/data_object_key.hpp"
-#include "super_object.hpp"
-#include "../kv_backends/exceptions/key_does_not_exist.hpp"
-#include "../kv_backends/exceptions/generic_kv_api_failure.hpp"
 #include "../logger/log.hpp"
 #include "../logger/write_bytes.hpp"
+#include "../memory_slices/borrower_slice.hpp"
+#include "../kv_backends/exceptions/key_does_not_exist.hpp"
+#include "../kv_backends/exceptions/generic_kv_api_failure.hpp"
+#include "utils/data_object_key.hpp"
+#include "super_object.hpp"
 
 using namespace nmfs::structures;
 

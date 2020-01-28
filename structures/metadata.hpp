@@ -8,7 +8,7 @@
 #include "../primitive_types.hpp"
 #include "../memory_slices/owner_slice.hpp"
 #include "on_disk/metadata.hpp"
-#include "super_object.fwd.hpp"
+#include "super_object.hpp"
 
 namespace nmfs::structures {
 

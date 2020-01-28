@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include "../structures/directory.hpp"
 #include "../structures/metadata.hpp"
-#include "../structures/super_object.fwd.hpp"
+#include "../structures/super_object.hpp"
 #include "../memory_slices/owner_slice.hpp"
 #include "../kv_backends/exceptions/key_does_not_exist.hpp"
 #include "../exceptions/file_does_not_exist.hpp"
@@ -109,7 +109,7 @@ void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_
 
 template<typename indexing, typename caching_policy>
 void cache_store<indexing, caching_policy>::remove(std::string_view path, metadata& metadata) {
-    log::information(log_locations::cache_store_operation) << __func__ << "( "<< path <<" )\n";
+    log::information(log_locations::cache_store_operation) << __func__ << "( " << path << " )\n";
     metadata.open_count--;
 
     if (metadata.open_count > 0) {

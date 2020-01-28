@@ -1,9 +1,8 @@
 #ifndef NMFS__CONFIGURATION_HPP
 #define NMFS__CONFIGURATION_HPP
 
-#include "structures/indexing_types/full_path.hpp"
-#include "structures/indexing_types/custom.hpp"
-#include "local_caches/caching_policy/evict_on_last_close.hpp"
+#include "structures/indexing_types/all.fwd.hpp"
+#include "local_caches/caching_policy/all.fwd.hpp"
 #include "logger/log_levels.hpp"
 #include "logger/log_locations.hpp"
 

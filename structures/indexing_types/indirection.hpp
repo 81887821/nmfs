@@ -5,8 +5,12 @@
 #include <string_view>
 #include "../super_object.hpp"
 #include "../../memory_slices/owner_slice.hpp"
+#include "../../fuse.hpp"
+#include "../metadata.hpp"
+#include "../../local_caches/cache_store.hpp"
 
 namespace nmfs::indexing_types {
+using namespace nmfs::structures;
 
 // TODO
 class indirection {

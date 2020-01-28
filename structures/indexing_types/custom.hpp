@@ -6,8 +6,10 @@
 #include "../super_object.hpp"
 #include "../../utils.hpp"
 #include "../../memory_slices/borrower_slice.hpp"
+#include "../../local_caches/cache_store.hpp"
 
 namespace nmfs::indexing_types {
+using namespace nmfs::structures;
 
 class custom {
 public:
@@ -20,7 +22,7 @@ public:
     }
 
     static inline slice_type make_regular_file_key(super_object& context, std::string_view path) {
-        std::string file_data_key = parent_directory_uuid + file_uuid;
+        std::string file_data_key; //parent_directory_uuid + file_uuid;
         char* uuid_sum = (char *)malloc(sizeof(char) * file_data_key.size());
         memcpy(uuid_sum, file_data_key.data(), file_data_key.size());
         /*free so erased

@@ -12,6 +12,7 @@
 #include "../directory.hpp"
 
 namespace nmfs::indexing_types {
+using namespace nmfs::structures;
 
 class full_path {
 public:

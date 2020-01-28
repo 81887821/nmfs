@@ -4,8 +4,10 @@
 #include "../../structures/super_object.hpp"
 #include "../../structures/metadata.hpp"
 #include "../../structures/directory.hpp"
+#include "../cache_store.hpp"
 
 namespace nmfs::caching_policies {
+using namespace nmfs::structures;
 
 class evict_on_last_close {
 public:
