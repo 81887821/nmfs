@@ -195,6 +195,6 @@ void nmfs::kv_backends::rados_backend::remove(const nmfs::slice& key) {
         log::information(log_locations::kv_backend_operation)
             << "rados_backend::remove : remove(key = " << key.to_string_view() << ") = " << ret << "\n";
     } else {
-        throw generic_kv_api_failure("rados_backend::remove : remove failed", ret);
+        throw generic_kv_api_failure("rados_backend::remove : remove failed (key = " + key.to_string() + ')', ret);
     }
 }

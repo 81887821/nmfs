@@ -12,7 +12,7 @@ class data_object_key: public owner_slice {
 public:
     const char separator = static_cast<char>(0x1C);
 
-    inline data_object_key(const std::string& base, uint32_t index);
+    inline data_object_key(const slice& base, uint32_t index);
 
     inline void update_index(uint32_t new_index);
     inline void increase_index();
@@ -30,7 +30,7 @@ private:
     constexpr static uint32_t to_key_index(uint32_t index);
 };
 
-inline data_object_key::data_object_key(const std::string& base, uint32_t index)
+inline data_object_key::data_object_key(const slice& base, uint32_t index)
     : owner_slice(base.size() + sizeof(separator) + sizeof(index)),
       base_length(base.size()),
       index(index) {

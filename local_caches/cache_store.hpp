@@ -41,7 +41,6 @@ private:
     super_object& context;
     std::map<std::string, metadata, std::less<>> cache;
     std::map<std::string, directory<indexing>, std::less<>> directory_cache;
-    std::map<std::string, std::string, std::less<>> uuid_cache; // (path, uuid)
 };
 
 }

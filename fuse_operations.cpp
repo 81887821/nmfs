@@ -154,7 +154,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             // if file
             std::string_view parent_path = get_parent_directory(path);
             structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
-            auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.uuid);
+            auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.key);
 
             std::memset(stat, 0, sizeof(struct stat));
             stat->st_nlink = metadata.link_count;
@@ -187,9 +187,7 @@ int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_in
     auto& super_object = *static_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        std::string_view parent_path = get_parent_directory(path);
-        structures::metadata& parent_directory_metadata = super_object.cache.open(parent_path);
-        structures::metadata& metadata = super_object.cache.open(path,parent_directory_metadata.uuid);
+        structures::metadata& metadata = super_object.cache.open(path);
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
         log::information(log_locations::fuse_operation) << std::hex << std::showbase << __func__ << ": " << path << " = " << &metadata << '\n';
 
@@ -273,9 +271,7 @@ int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t si
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        std::string_view parent_path = get_parent_directory(path);
-        structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.uuid);
+        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
         if (!S_ISREG(metadata.mode)) {
             return -EBADF;
         }
@@ -312,13 +308,10 @@ int nmfs::fuse_operations::unlink(const char* path) {
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-
-        //auto& metadata = super_object->cache.open(path);
+        auto& metadata = super_object->cache.open(path);
 
         std::string_view parent_path = get_parent_directory(path);
         auto& parent_directory = super_object->cache.open_directory(parent_path);
-
-        auto& metadata = super_object->cache.open(path, parent_directory.directory_metadata.uuid);
 
         parent_directory.remove_file(get_filename(path));
         super_object->cache.close_directory(parent_path, parent_directory);
@@ -420,9 +413,7 @@ int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        std::string_view parent_path = get_parent_directory(path);
-        structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.uuid);
+        auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
         read_size = metadata.read(buffer, size, offset);
 
         if (!file_info) {
