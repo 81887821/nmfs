@@ -133,8 +133,8 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
     fuse_context* fuse_context = fuse_get_context();
     auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
     try {
-        // if directory
         try {
+            // if file
             auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path);
 
             std::memset(stat, 0, sizeof(struct stat));
@@ -150,11 +150,10 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             if (!file_info) {
                 super_object->cache.close(path, metadata);
             }
-        } catch (nmfs::exceptions::file_does_not_exist& ) {
-            // if file
-            std::string_view parent_path = get_parent_directory(path);
-            structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
-            auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object->cache.open(path, parent_directory_metadata.key);
+        } catch (nmfs::exceptions::file_does_not_exist&) {
+            // if directory
+            auto& directory = super_object->cache.open_directory(path);
+            auto& metadata = directory.directory_metadata;
 
             std::memset(stat, 0, sizeof(struct stat));
             stat->st_nlink = metadata.link_count;
@@ -166,9 +165,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             stat->st_mtim = metadata.mtime;
             stat->st_ctim = metadata.ctime;
 
-            if (!file_info) {
-                super_object->cache.close(path, metadata);
-            }
+            super_object->cache.close_directory(path, directory);
         }
 
         return 0;

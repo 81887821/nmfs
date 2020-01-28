@@ -47,6 +47,7 @@ add_executable(nmfs
         exceptions/file_does_not_exist.hpp
         exceptions/file_already_exists.hpp
         exceptions/is_not_directory.hpp
+        exceptions/type_not_supported.hpp
         logger/log.hpp
         logger/log_locations.hpp
         logger/log_levels.hpp

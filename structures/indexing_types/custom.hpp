@@ -14,14 +14,12 @@ public:
     using slice_type = nmfs::borrower_slice;
     using directory_content_type = std::string;
 
-    /* key for accessing directory metadata */
-    static inline slice_type make_key(super_object& context, std::string_view path) {
+    static inline slice_type make_directory_key(super_object& context, std::string_view path) {
         DECLARE_CONST_BORROWER_SLICE(slice, path.data(), path.size());
         return slice;
     }
 
-    /* key for accessing file metatdata */
-    static inline slice_type make_key(super_object& context, std::string_view path, std::string parent_directory_uuid, std::string file_uuid) {
+    static inline slice_type make_regular_file_key(super_object& context, std::string_view path) {
         std::string file_data_key = parent_directory_uuid + file_uuid;
         char* uuid_sum = (char *)malloc(sizeof(char) * file_data_key.size());
         memcpy(uuid_sum, file_data_key.data(), file_data_key.size());

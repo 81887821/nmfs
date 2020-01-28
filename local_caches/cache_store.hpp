@@ -2,6 +2,7 @@
 #define NMFS_LOCAL_CACHES_CACHE_STORE_HPP
 
 #include <cassert>
+#include <functional>
 #include <map>
 #include <string_view>
 #include <type_traits>
@@ -24,7 +25,6 @@ public:
     explicit cache_store(super_object& context);
 
     inline metadata& open(std::string_view path);
-    inline metadata& open(std::string_view path, std::string parent_directory_uuid);
     inline metadata& create(std::string_view path, uid_t owner, gid_t group, mode_t mode);
     inline void close(std::string_view path, metadata& metadata);
     inline void drop_if_policy_requires(std::string_view path, metadata& metadata);
@@ -41,12 +41,15 @@ private:
     super_object& context;
     std::map<std::string, metadata, std::less<>> cache;
     std::map<std::string, directory<indexing>, std::less<>> directory_cache;
+
+    inline metadata& open(std::string_view path, std::function<typename indexing::slice_type(super_object&, std::string_view)> key_generator);
 };
 
 }
 
 #include "../structures/super_object.hpp"
 #include "../logger/log.hpp"
+#include "../exceptions/type_not_supported.hpp"
 
 namespace nmfs {
 
@@ -56,112 +59,20 @@ cache_store<indexing, caching_policy>::cache_store(super_object& context): conte
 
 template<typename indexing, typename caching_policy>
 inline metadata& cache_store<indexing, caching_policy>::open(std::string_view path) {
-    log::information(log_locations::cache_store_operation) << __func__ << " for directory metadata()\n";
-    auto iterator = cache.find(path);
-
-    if (iterator != cache.end()) {
-        metadata& metadata = iterator->second;
-
-        if (!caching_policy::is_valid(context, metadata)) {
-            metadata.reload();
-        }
-        metadata.open_count++;
-        return metadata;
-    } else {
-        typename indexing::slice_type key = indexing::make_key(context, path);
-        try {
-            owner_slice value = context.backend->get(key);
-            auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
-
-            auto emplace_result = cache.emplace(std::make_pair(
-                std::string(path),
-                metadata(context, owner_slice(std::move(key)), on_disk_metadata)
-            ));
-            return emplace_result.first->second;
-        } catch (kv_backends::exceptions::key_does_not_exist& e) {
-            throw nmfs::exceptions::file_does_not_exist(path);
-        }
-    }
-}
-
-template<typename indexing, typename caching_policy>
-inline metadata& cache_store<indexing, caching_policy>::open(std::string_view path, std::string parent_directory_uuid) {
-    log::information(log_locations::cache_store_operation) << __func__ << " for file metadata()\n";
-    auto iterator = cache.find(path);
-    std::string *file_uuid;
-    if (iterator != cache.end()) {
-        metadata& metadata = iterator->second;
-
-        if (!caching_policy::is_valid(context, metadata)) {
-            metadata.reload();
-        }
-        metadata.open_count++;
-        return metadata;
-    } else {
-        auto uuid_cache_iterator = uuid_cache.find(path);
-        if(uuid_cache_iterator != uuid_cache.end()) {
-            file_uuid = &(uuid_cache_iterator->second);
-        } else {
-            // create new file_uuid
-            file_uuid = new std::string(nmfs::generate_uuid());
-            auto uuid_emplace_result = uuid_cache.emplace(std::make_pair(
-                std::string(path),
-                *file_uuid
-            ));
-        }
-
-        typename indexing::slice_type key = indexing::make_key(context, path, parent_directory_uuid, *file_uuid); // not just make slice but first find corresponding uuid and if uuid exsit, make key
-
-        try {
-            owner_slice value = context.backend->get(key);
-            auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
-            auto emplace_result = cache.emplace(std::make_pair(
-                std::string(path),
-                metadata(context, owner_slice(std::move(key)), on_disk_metadata)
-            ));
-            if(S_ISREG(emplace_result.first->second.mode)) {
-                emplace_result.first->second.uuid = std::move(std::string(key.data(), key.size()));
-            }
-            return emplace_result.first->second;
-        } catch (kv_backends::exceptions::key_does_not_exist& e) {
-            throw nmfs::exceptions::file_does_not_exist(path);
-        }
-    }
+    return open(path, indexing::make_regular_file_key);
 }
 
 template<typename indexing, typename caching_policy>
 metadata& cache_store<indexing, caching_policy>::create(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
     log::information(log_locations::cache_store_operation) << __func__ << "()\n";
 
-    typename indexing::slice_type key = indexing::make_key(context, path);
-    std::string *file_uuid;
-
     if (cache.contains(path)) {
         throw nmfs::exceptions::file_already_exist(path);
     } else {
-        if(S_ISDIR(mode)) {
-            //key = indexing::make_key(context, path);
-        } else if (S_ISREG(mode)){
-            fuse_context* fuse_context = fuse_get_context();
-            auto super_object = reinterpret_cast<structures::super_object*>(fuse_context->private_data);
-
-            std::string_view parent_path = get_parent_directory(path);
-            structures::metadata& parent_directory_metadata = super_object->cache.open(parent_path);
-
-            auto uuid_cache_iterator = uuid_cache.find(path);
-            if(uuid_cache_iterator != uuid_cache.end()) {
-                file_uuid = &(uuid_cache_iterator->second);
-            } else {
-                // create new file_uuid
-                file_uuid = new std::string(nmfs::generate_uuid(), key.size());
-                auto uuid_emplace_result = uuid_cache.emplace(std::make_pair(
-                    std::string(path),
-                    *file_uuid
-                ));
-            }
-
-            key = indexing::make_key(context, path, parent_directory_metadata.uuid, *file_uuid);
-        } // S_ISREG
+        typename indexing::slice_type key =
+            S_ISDIR(mode)? indexing::make_directory_key(context, path)
+            : S_ISREG(mode)? indexing::make_regular_file_key(context, path)
+            : throw nmfs::exceptions::type_not_supported(mode);
 
         if (context.backend->exist(key)) {
             throw nmfs::exceptions::file_already_exist(path);
@@ -170,9 +81,6 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
                 std::string(path),
                 metadata(context, owner_slice(std::move(key)), owner, group, mode)
             ));
-            if(S_ISREG(mode)) {
-                emplace_result.first->second.uuid = std::string(key.data());
-            }
             return emplace_result.first->second;
         }
     }
@@ -230,7 +138,7 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(std::
     }
 
     // If directory doesn't exist, an exception will be thrown from open
-    metadata& directory_metadata = open(path);
+    metadata& directory_metadata = open(path, indexing::make_directory_key);
     auto emplace_result = directory_cache.emplace(std::make_pair(
         std::string(path),
         directory<indexing>(directory_metadata)
@@ -292,6 +200,35 @@ void cache_store<indexing, caching_policy>::flush_all() const {
 
     for (const auto& metadata: cache) {
         metadata.second.flush();
+    }
+}
+
+template<typename indexing, typename caching_policy>
+metadata& cache_store<indexing, caching_policy>::open(std::string_view path, std::function<typename indexing::slice_type(super_object&, std::string_view)> key_generator) {
+    auto iterator = cache.find(path);
+
+    if (iterator != cache.end()) {
+        metadata& metadata = iterator->second;
+
+        if (!caching_policy::is_valid(context, metadata)) {
+            metadata.reload();
+        }
+        metadata.open_count++;
+        return metadata;
+    } else {
+        typename indexing::slice_type key = key_generator(context, path);
+        try {
+            owner_slice value = context.backend->get(key);
+            auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
+
+            auto emplace_result = cache.emplace(std::make_pair(
+                std::string(path),
+                metadata(context, owner_slice(std::move(key)), on_disk_metadata)
+            ));
+            return emplace_result.first->second;
+        } catch (kv_backends::exceptions::key_does_not_exist& e) {
+            throw nmfs::exceptions::file_does_not_exist(path);
+        }
     }
 }
 

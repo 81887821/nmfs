@@ -13,7 +13,11 @@ class indirection {
     using slice_type = nmfs::owner_slice;
     using directory_content_type = nullptr_t;
 
-    static inline slice_type make_key(super_object& context, std::string_view path) {
+    static inline slice_type make_directory_key(super_object& context, std::string_view path) {
+        throw std::runtime_error("Not implemented");
+    }
+
+    static inline slice_type make_regular_file_key(super_object& context, std::string_view path) {
         throw std::runtime_error("Not implemented");
     }
 
