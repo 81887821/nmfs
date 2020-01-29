@@ -125,17 +125,13 @@ void metadata::truncate(off_t new_size) {
 }
 
 void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
-    log::information(log_locations::file_data_operation) << __func__ << "()\n";
+    log::information(log_locations::file_data_operation) << std::showbase << std::hex << __func__ << "(index_from = " << index_from << ", index_to = " << index_to << ")\n";
     auto data_key = nmfs::structures::utils::data_object_key(key, index_from);
-    log::information(log_locations::file_data_operation) << __func__ << " first data_key = " << data_key.to_string_view()<<"\n";
-    log::information(log_locations::file_data_operation) << __func__ << " from = " << index_from << " to = " << index_to <<"\n";
     for (uint32_t i = index_from; i <= index_to; i++) {
         data_key.update_index(i);
-        log::information(log_locations::file_data_operation) << __func__ << " next data_key = " << data_key.to_string_view()<<"\n";
         try {
             context.backend->remove(data_key);
         } catch (kv_backends::exceptions::generic_kv_api_failure&) {
-            log::information(log_locations::file_data_operation) << __func__ << "key_does_not_exist\n";
             continue;
         }
     }

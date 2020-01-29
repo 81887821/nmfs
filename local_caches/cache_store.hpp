@@ -64,13 +64,14 @@ cache_store<indexing, caching_policy>::cache_store(super_object& context): conte
 
 template<typename indexing, typename caching_policy>
 inline metadata& cache_store<indexing, caching_policy>::open(std::string_view path) {
+    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     auto key_generator = std::function(indexing::make_regular_file_key);
     return open(path, key_generator);
 }
 
 template<typename indexing, typename caching_policy>
 metadata& cache_store<indexing, caching_policy>::create(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
-    log::information(log_locations::cache_store_operation) << __func__ << "()\n";
+    log::information(log_locations::cache_store_operation) << std::showbase << __func__ << "(path = " << path << ", owner = " << owner << ", group = " << group << ", mode = " << std::oct << mode << ")\n";
 
     if (cache.contains(path)) {
         throw nmfs::exceptions::file_already_exist(path);
@@ -101,14 +102,14 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
 
 template<typename indexing, typename caching_policy>
 inline void cache_store<indexing, caching_policy>::close(std::string_view path, metadata& metadata) {
-    log::information(log_locations::cache_store_operation) << __func__ << "()\n";
+    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     metadata.open_count--;
     drop_if_policy_requires(path, metadata);
 }
 
 template<typename indexing, typename caching_policy>
 void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, metadata& metadata) {
-    log::information(log_locations::cache_store_operation) << __func__ << "()\n";
+    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     if (!caching_policy::keep_cache(context, metadata)) {
         auto iterator = cache.find(path);
         if (iterator != cache.end()) {
@@ -135,7 +136,7 @@ void cache_store<indexing, caching_policy>::remove(std::string_view path, metada
 
 template<typename indexing, typename caching_policy>
 directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
-    log::information(log_locations::cache_store_operation) << __func__ << "()\n";
+    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     auto iterator = directory_cache.find(path);
 
     if (iterator != directory_cache.end()) {
@@ -162,7 +163,7 @@ directory<typename indexing::directory_entry_type>& cache_store<indexing, cachin
 
 template<typename indexing, typename caching_policy>
 directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
-    log::information(log_locations::cache_store_operation) << __func__ << "()\n";
+    log::information(log_locations::cache_store_operation) << std::showbase << __func__ << "(path = " << path << ", owner = " << owner << ", group = " << group << ", mode = " << std::oct << mode << ")\n";
     // If directory exists, an exception will be thrown from create
     metadata& directory_metadata = create(path, owner, group, mode);
     auto emplace_result = directory_cache.emplace(std::make_pair(
@@ -174,7 +175,7 @@ directory<typename indexing::directory_entry_type>& cache_store<indexing, cachin
 
 template<typename indexing, typename caching_policy>
 void cache_store<indexing, caching_policy>::close_directory(std::string_view path, directory<directory_entry_type>& directory) {
-    log::information(log_locations::cache_store_operation) << __func__ << "()\n";
+    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     metadata& directory_metadata = directory.directory_metadata;
     directory_metadata.open_count--;
 
@@ -192,7 +193,7 @@ void cache_store<indexing, caching_policy>::close_directory(std::string_view pat
 
 template<typename indexing, typename caching_policy>
 void cache_store<indexing, caching_policy>::remove_directory(std::string_view path, directory<directory_entry_type>& directory) {
-    log::information(log_locations::cache_store_operation) << __func__ << "()\n";
+    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     metadata& directory_metadata = directory.directory_metadata;
     directory_metadata.open_count--;
 
