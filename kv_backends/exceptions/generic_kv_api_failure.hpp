@@ -9,7 +9,7 @@ class generic_kv_api_failure: public kv_backend_exception {
 public:
     inline generic_kv_api_failure(const std::string& message, int error);
 
-    [[nodiscard]] constexpr int get_error();
+    [[nodiscard]] inline int error_code() const override;
 
 private:
     int error;
@@ -18,7 +18,7 @@ private:
 generic_kv_api_failure::generic_kv_api_failure(const std::string& message, int error): kv_backend_exception(message), error(error) {
 }
 
-constexpr int generic_kv_api_failure::get_error() {
+int generic_kv_api_failure::error_code() const {
     return error;
 }
 

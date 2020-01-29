@@ -46,7 +46,7 @@ add_executable(nmfs
         kv_backends/exceptions/generic_kv_api_failure.hpp
         kv_backends/exceptions/key_does_not_exist.hpp
         kv_backends/exceptions/backend_initialization_failure.hpp
-        exceptions/nmfs_exceptions.hpp
+        exceptions/nmfs_exception.hpp
         exceptions/file_does_not_exist.hpp
         exceptions/file_already_exists.hpp
         exceptions/is_not_directory.hpp

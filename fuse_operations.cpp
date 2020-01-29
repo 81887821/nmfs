@@ -120,11 +120,11 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         super_object.cache->close_directory(parent_path, parent_directory);
         // Create performs "create and open a file", so we don't close metadata here
         return 0;
-    } catch (nmfs::exceptions::file_already_exist&) {
-        return -EEXIST;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT; // Parent does not exist
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -172,9 +172,11 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
         }
 
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -192,9 +194,11 @@ int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_in
         log::information(log_locations::fuse_operation) << std::hex << std::showbase << __func__ << ": " << path << " = " << &metadata << '\n';
 
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -221,11 +225,11 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
         super_object.cache->close_directory(path, new_directory);
 
         return 0;
-    } catch (nmfs::exceptions::file_already_exist&) {
-        return -EEXIST;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT; // Parent does not exist
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -253,11 +257,11 @@ int nmfs::fuse_operations::rmdir(const char* path) {
             super_object.cache->remove_directory(path, directory);
             return 0;
         }
-    } catch (nmfs::exceptions::is_not_directory&) {
-        return -ENOTDIR;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -284,9 +288,11 @@ int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t si
 
         // should return exactly the number of bytes requested except on error.
         return written_size;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -319,9 +325,11 @@ int nmfs::fuse_operations::unlink(const char* path) {
         super_object.cache->remove(path, metadata);
 
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -353,9 +361,11 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
         }
 
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -379,9 +389,11 @@ int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct 
         }
 
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -396,9 +408,11 @@ int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object.cache->open(path);
         metadata.truncate(length);
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -422,9 +436,11 @@ int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off
 
         //should return exactly the number of bytes requested except on EOF or error, otherwise the rest of the data will be substituted with zeroes.
         return read_size;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -444,11 +460,11 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
         file_info->fh = reinterpret_cast<uint64_t>(&directory);
 
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (nmfs::exceptions::is_not_directory&) {
-        return -ENOTDIR;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
@@ -473,11 +489,11 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
         }
 
         return 0;
-    } catch (nmfs::exceptions::file_does_not_exist&) {
-        return -ENOENT;
-    } catch (nmfs::exceptions::is_not_directory&) {
-        return -ENOTDIR;
-    } catch (std::exception&) {
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
         return -EIO;
     }
 }
