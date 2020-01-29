@@ -11,6 +11,10 @@ metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key,
     : nmfs::structures::metadata(super, std::move(key), on_disk_data) {
 }
 
+metadata::~metadata() {
+    metadata::flush();
+}
+
 void metadata::flush() const {
     if (dirty) {
         on_disk::metadata on_disk_structure {};

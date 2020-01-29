@@ -16,6 +16,10 @@ metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key,
     std::copy(custom_on_disk_data->uuid, custom_on_disk_data->uuid + sizeof(uuid_t), data_key_base.data());
 }
 
+metadata::~metadata() {
+    metadata::flush();
+}
+
 void metadata::flush() const {
     if (dirty) {
         nmfs::structures::indexing_types::custom::on_disk::metadata on_disk_structure {};
@@ -40,4 +44,3 @@ void metadata::to_on_disk_metadata(nmfs::structures::indexing_types::custom::on_
     nmfs::structures::metadata::to_on_disk_metadata(on_disk_metadata);
     std::copy(data_key_base.data(), data_key_base.data() + sizeof(uuid_t), on_disk_metadata.uuid);
 }
-

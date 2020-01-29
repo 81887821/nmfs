@@ -9,6 +9,7 @@ class metadata: public nmfs::structures::metadata {
 public:
     metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
     metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_data);
+    ~metadata() override;
 
     void flush() const override;
     void reload() override;
