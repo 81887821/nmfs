@@ -23,6 +23,9 @@ public:
     [[nodiscard]] inline byte* data() final;
     [[nodiscard]] inline const byte* data() const final;
 
+    inline owner_slice& operator=(const slice& other);
+    inline owner_slice& operator=(owner_slice&& other) = default;
+
 protected:
     std::unique_ptr<byte[]> memory;
 };
@@ -49,6 +52,12 @@ byte* owner_slice::data() {
 
 const byte* owner_slice::data() const {
     return memory.get();
+}
+
+owner_slice& owner_slice::operator=(const slice& other) {
+    memory = std::make_unique<byte[]>(other.size());
+    std::copy(other.data(), other.data() + other.size(), memory.get());
+    return *this;
 }
 
 }

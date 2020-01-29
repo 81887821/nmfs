@@ -8,6 +8,7 @@
 #include "../fuse.hpp"
 #include "metadata.hpp"
 #include "../exceptions/is_not_directory.hpp"
+#include "../exceptions/file_does_not_exist.hpp"
 #include "../logger/log.hpp"
 
 namespace nmfs::structures {
@@ -26,6 +27,7 @@ public:
     inline void fill_buffer(const fuse_directory_filler& filler);
     [[nodiscard]] constexpr size_t number_of_files() const;
     inline void remove();
+    inline const directory_entry_type& get_entry(std::string_view file_name) const;
 
 protected:
     std::set<directory_entry_type> files;
@@ -150,6 +152,17 @@ void directory<directory_entry_type>::remove() {
 
     directory_metadata.remove();
     dirty = false;
+}
+
+template<typename directory_entry_type>
+const directory_entry_type& directory<directory_entry_type>::get_entry(std::string_view file_name) const {
+    auto iterator = std::find_if(files.begin(), files.end(), directory_entry_type::find_by_name(file_name));
+
+    if (iterator != files.end()) {
+        return *iterator;
+    } else {
+        throw nmfs::exceptions::file_does_not_exist(file_name);
+    }
 }
 
 }

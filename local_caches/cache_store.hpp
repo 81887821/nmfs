@@ -65,7 +65,7 @@ cache_store<indexing, caching_policy>::cache_store(super_object& context): conte
 template<typename indexing, typename caching_policy>
 inline metadata& cache_store<indexing, caching_policy>::open(std::string_view path) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
-    auto key_generator = std::function(indexing::make_regular_file_key);
+    auto key_generator = std::function(indexing::existing_regular_file_key);
     return open(path, key_generator);
 }
 
@@ -76,23 +76,26 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
     if (cache.contains(path)) {
         throw nmfs::exceptions::file_already_exist(path);
     } else {
-        auto do_create = [this, path, owner, group, mode]<typename slice_type>(slice_type key) -> metadata& {
+        auto temporary_metadata = metadata_type(context, owner_slice(0), owner, group, mode);
+        auto do_create = [this, path, owner, group, mode, &temporary_metadata]<typename slice_type>(slice_type key) -> metadata& {
             if (context.backend->exist(key)) {
                 throw nmfs::exceptions::file_already_exist(path);
             } else {
                 auto emplace_result = cache.emplace(std::make_pair(
                     std::string(path),
-                    metadata_type(context, owner_slice(std::move(key)), owner, group, mode)
+                    std::move(temporary_metadata)
                 ));
                 return emplace_result.first->second;
             }
         };
 
         if (S_ISDIR(mode)) {
-            auto key = indexing::make_directory_key(context, path);
+            auto key = indexing::new_directory_key(context, path, temporary_metadata);
+            temporary_metadata.key = owner_slice(key);
             return do_create(std::move(key));
         } else if (S_ISREG(mode)) {
-            auto key = indexing::make_regular_file_key(context, path);
+            auto key = indexing::new_regular_file_key(context, path, temporary_metadata);
+            temporary_metadata.key = owner_slice(key);
             return do_create(std::move(key));
         } else {
             throw nmfs::exceptions::type_not_supported(mode);
@@ -152,7 +155,7 @@ directory<typename indexing::directory_entry_type>& cache_store<indexing, cachin
     }
 
     // If directory doesn't exist, an exception will be thrown from open
-    auto key_generator = std::function(indexing::make_directory_key);
+    auto key_generator = std::function(indexing::existing_directory_key);
     metadata& directory_metadata = open(path, key_generator);
     auto emplace_result = directory_cache.emplace(std::make_pair(
         std::string(path),
