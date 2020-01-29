@@ -30,6 +30,7 @@ public:
         auto key = owner_slice(sizeof(uuid_t));
 
         std::copy(entry.uuid, entry.uuid + sizeof(uuid_t), key.data());
+        context.cache->close_directory(parent_path, parent_directory);
         return key;
     }
 
