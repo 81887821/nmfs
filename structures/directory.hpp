@@ -65,7 +65,7 @@ inline void directory<directory_entry_type>::add_file(std::string_view file_name
 
     auto result = files.emplace(std::move(content));
     if (result.second) {
-        size += content.size();
+        size += result.first->size();
         dirty = true;
     } else {
         log::warning(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << " failed: files.emplace returned false";
