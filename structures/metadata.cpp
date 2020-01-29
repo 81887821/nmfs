@@ -66,6 +66,7 @@ ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) 
         remain_size_in_object = context.maximum_object_size;
         remain_size_to_write -= size_to_write_in_object;
         buffer += size_to_write_in_object;
+        data_key.increase_index();
     }
 
     return size_to_write;
@@ -102,6 +103,7 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
         remain_size_in_object = context.maximum_object_size;
         remain_size_to_read -= size_to_read_in_object;
         buffer += size_to_read_in_object;
+        data_key.increase_index();
     }
 
     log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer - size_to_read, size_to_read) << '\n';
