@@ -97,7 +97,7 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
         }
 
         if (read_size < size_to_read_in_object) {
-            std::fill(buffer + read_size, buffer + size_to_read_in_object - 1, 0);
+            std::fill(buffer + read_size, buffer + size_to_read_in_object, 0);
         }
         offset_in_object = 0;
         remain_size_in_object = context.maximum_object_size;
