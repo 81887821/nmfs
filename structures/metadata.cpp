@@ -7,6 +7,8 @@
 #include "../kv_backends/exceptions/generic_kv_api_failure.hpp"
 #include "utils/data_object_key.hpp"
 #include "super_object.hpp"
+#include "indexing_types/custom/metadata.hpp"
+
 
 using namespace nmfs::structures;
 
@@ -25,8 +27,6 @@ metadata::metadata(super_object& super, owner_slice key, uid_t owner, gid_t grou
     }
     mtime = atime;
     ctime = atime;
-
-    flush();
 }
 
 metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure)
@@ -124,16 +124,6 @@ void metadata::truncate(off_t new_size) {
     }
 }
 
-void metadata::flush() const {
-    if (dirty) {
-        on_disk::metadata on_disk_structure = to_on_disk_structure();
-        auto value = borrower_slice(&on_disk_structure, sizeof(on_disk_structure));
-
-        context.backend->put(key, value);
-        dirty = false;
-    }
-}
-
 void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
     log::information(log_locations::file_data_operation) << __func__ << "()\n";
     auto data_key = nmfs::structures::utils::data_object_key(key, index_from);
@@ -161,4 +151,15 @@ void metadata::remove() {
     remove_data_objects(0, size / context.maximum_object_size);
     context.backend->remove(key);
     dirty = false;
+}
+
+void metadata::to_on_disk_metadata(on_disk::metadata& on_disk_metadata) const {
+    on_disk_metadata.link_count = link_count;
+    on_disk_metadata.owner = owner;
+    on_disk_metadata.group = group;
+    on_disk_metadata.mode = mode;
+    on_disk_metadata.size = size;
+    on_disk_metadata.atime = atime;
+    on_disk_metadata.mtime = mtime;
+    on_disk_metadata.ctime = ctime;
 }

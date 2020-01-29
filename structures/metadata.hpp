@@ -7,6 +7,7 @@
 #include <string>
 #include "../primitive_types.hpp"
 #include "../memory_slices/owner_slice.hpp"
+#include "utils/data_object_key.hpp"
 #include "on_disk/metadata.hpp"
 #include "super_object.hpp"
 
@@ -29,7 +30,7 @@ public:
 
     metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
     metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure);
-    inline ~metadata();
+    virtual inline ~metadata() = default;
 
     ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
     ssize_t read(byte* buffer, size_t size_to_read, off_t offset) const;
@@ -37,34 +38,18 @@ public:
     /**
      * Write local metadata contents to backend
      */
-    void flush() const;
+    virtual void flush() const = 0;
     /**
      * Discard local metadata contents and reload from backend
      */
-    void reload();
+    virtual void reload() = 0;
     void remove();
 
-private:
-    [[nodiscard]] constexpr on_disk::metadata to_on_disk_structure() const;
+protected:
     void remove_data_objects(uint32_t index_from, uint32_t index_to);
+    virtual utils::data_object_key get_data_object_key(uint32_t index) const = 0;
+    virtual void to_on_disk_metadata(on_disk::metadata& on_disk_metadata) const;
 };
-
-inline metadata::~metadata() {
-    flush();
-}
-
-constexpr on_disk::metadata metadata::to_on_disk_structure() const {
-    return {
-        .link_count = static_cast<uint32_t>(link_count),
-        .owner = owner,
-        .group = group,
-        .mode = mode,
-        .size = size,
-        .atime = atime,
-        .mtime = mtime,
-        .ctime = ctime,
-    };
-}
 
 }
 

@@ -1,8 +1,7 @@
 #include "super_object.hpp"
+#include "indexing_types/all.hpp"
 #include "../local_caches/cache_store.hpp"
 #include "../local_caches/caching_policy/all.hpp"
-#include "indexing_types/all.hpp"
-
 using namespace nmfs::structures;
 
 super_object::super_object(std::unique_ptr<kv_backend> backend)

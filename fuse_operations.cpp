@@ -461,7 +461,7 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
     auto& super_object = *reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     try {
-        auto& directory = file_info? *reinterpret_cast<structures::directory<super_object::indexing_type>*>(file_info->fh) : super_object.cache->open_directory(path);
+        auto& directory = file_info? *reinterpret_cast<structures::directory<super_object::indexing_type::directory_entry_type>*>(file_info->fh) : super_object.cache->open_directory(path);
 
         filler(buffer, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
         filler(buffer, "..", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
@@ -512,7 +512,7 @@ int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* f
     auto& super_object = *reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
     if (file_info) {
-        auto& directory = *reinterpret_cast<structures::directory<super_object::indexing_type>*>(file_info->fh);
+        auto& directory = *reinterpret_cast<structures::directory<super_object::indexing_type::directory_entry_type>*>(file_info->fh);
         super_object.cache->close_directory(path, directory);
     }
 

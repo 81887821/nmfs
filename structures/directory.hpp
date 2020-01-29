@@ -12,7 +12,7 @@
 
 namespace nmfs::structures {
 
-template<typename indexing>
+template<typename directory_entry_type>
 class directory {
 public:
     metadata& directory_metadata;
@@ -27,17 +27,18 @@ public:
     [[nodiscard]] constexpr size_t number_of_files() const;
     inline void remove();
 
-private:
-    std::set<typename indexing::directory_content_type> files;
+protected:
+    std::set<directory_entry_type> files;
     size_t size;
     mutable bool dirty;
 
+private:
     [[nodiscard]] inline std::unique_ptr<byte[]> serialize() const;
     inline void parse(std::unique_ptr<byte[]> buffer);
 };
 
-template<typename indexing>
-inline directory<indexing>::directory(nmfs::structures::metadata& metadata)
+template<typename directory_entry_type>
+inline directory<directory_entry_type>::directory(nmfs::structures::metadata& metadata)
     : directory_metadata(metadata),
       size(sizeof(on_disk_size_type)),
       dirty(metadata.size == 0) {
@@ -51,44 +52,43 @@ inline directory<indexing>::directory(nmfs::structures::metadata& metadata)
     }
 }
 
-template<typename indexing>
-inline directory<indexing>::~directory() {
+template<typename directory_entry_type>
+inline directory<directory_entry_type>::~directory() {
     flush();
 }
 
-template<typename indexing>
-inline void directory<indexing>::add_file(std::string_view file_name, const metadata& metadata) {
+template<typename directory_entry_type>
+inline void directory<directory_entry_type>::add_file(std::string_view file_name, const metadata& metadata) {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
 
-    auto content = indexing::to_directory_content(file_name, metadata);
-    size_t content_size = indexing::get_content_size(content);
+    auto content = directory_entry_type(std::string(file_name), metadata);
 
     auto result = files.emplace(std::move(content));
     if (result.second) {
-        size += content_size;
+        size += content.size();
         dirty = true;
     } else {
         log::warning(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << " failed: files.emplace returned false";
     }
 }
 
-template<typename indexing>
-inline void directory<indexing>::remove_file(std::string_view file_name) {
+template<typename directory_entry_type>
+inline void directory<directory_entry_type>::remove_file(std::string_view file_name) {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
 
-    auto iterator = std::find_if(files.begin(), files.end(), indexing::content_finder_by_name(file_name));
+    auto iterator = std::find_if(files.begin(), files.end(), directory_entry_type::find_by_name(file_name));
 
     if (iterator != files.end()) {
         files.erase(iterator);
-        size -= indexing::get_content_size(*iterator);
+        size -= iterator->size();
         dirty = true;
     } else {
         log::warning(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << " failed: find_if returned files.end()";
     }
 }
 
-template<typename indexing>
-inline void directory<indexing>::flush() const {
+template<typename directory_entry_type>
+inline void directory<directory_entry_type>::flush() const {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
 
     if (dirty) {
@@ -101,8 +101,8 @@ inline void directory<indexing>::flush() const {
     }
 }
 
-template<typename indexing>
-inline std::unique_ptr<byte[]> directory<indexing>::serialize() const {
+template<typename directory_entry_type>
+inline std::unique_ptr<byte[]> directory<directory_entry_type>::serialize() const {
     on_disk_size_type number_of_files = files.size();
     std::unique_ptr<byte[]> buffer = std::make_unique<byte[]>(size);
     size_t index = 0;
@@ -111,45 +111,41 @@ inline std::unique_ptr<byte[]> directory<indexing>::serialize() const {
     index += sizeof(number_of_files);
 
     for (const auto& file: files) {
-        index += indexing::serialize_directory_content(&buffer[index], file);
+        index += file.serialize(&buffer[index]);
     }
 
     return buffer;
 }
 
-template<typename indexing>
-inline void directory<indexing>::parse(std::unique_ptr<byte[]> buffer) {
-    size_t index = 0;
+template<typename directory_entry_type>
+inline void directory<directory_entry_type>::parse(std::unique_ptr<byte[]> buffer) {
+    const byte* current = buffer.get();
 
-    on_disk_size_type number_of_files = *reinterpret_cast<on_disk_size_type*>(&buffer[index]);
-    index += sizeof(on_disk_size_type);
-
-    typename indexing::directory_content_type content;
-    on_disk_size_type parsed_size;
+    on_disk_size_type number_of_files = *reinterpret_cast<const on_disk_size_type*>(current);
+    current += sizeof(on_disk_size_type);
 
     for (on_disk_size_type i = 0; i < number_of_files; i++) {
-        std::tie(content, parsed_size) = indexing::parse_directory_content(&buffer[index]);
+        auto content = directory_entry_type(&current);
         files.emplace(std::move(content));
-        index += parsed_size;
     }
 
-    size = index;
+    size = current - buffer.get();
 }
 
-template<typename indexing>
-void directory<indexing>::fill_buffer(const fuse_directory_filler& filler) {
+template<typename directory_entry_type>
+void directory<directory_entry_type>::fill_buffer(const fuse_directory_filler& filler) {
     for (const auto& content: files) {
-        indexing::fill_content(content, filler);
+        content.fill(filler);
     }
 }
 
-template<typename indexing>
-constexpr size_t directory<indexing>::number_of_files() const {
+template<typename directory_entry_type>
+constexpr size_t directory<directory_entry_type>::number_of_files() const {
     return files.size();
 }
 
-template<typename indexing>
-void directory<indexing>::remove() {
+template<typename directory_entry_type>
+void directory<directory_entry_type>::remove() {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
 
     directory_metadata.remove();

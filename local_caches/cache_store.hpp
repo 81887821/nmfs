@@ -12,6 +12,7 @@
 #include "../structures/metadata.hpp"
 #include "../structures/super_object.hpp"
 #include "../memory_slices/owner_slice.hpp"
+#include "../memory_slices/borrower_slice.hpp"
 #include "../kv_backends/exceptions/key_does_not_exist.hpp"
 #include "../exceptions/file_does_not_exist.hpp"
 #include "../exceptions/file_already_exists.hpp"
@@ -22,6 +23,9 @@ using namespace nmfs::structures;
 template<typename indexing, typename caching_policy>
 class cache_store {
 public:
+    using directory_entry_type = typename indexing::directory_entry_type;
+    using metadata_type = typename indexing::metadata_type;
+
     explicit cache_store(super_object& context);
 
     inline metadata& open(std::string_view path);
@@ -30,19 +34,20 @@ public:
     inline void drop_if_policy_requires(std::string_view path, metadata& metadata);
     inline void remove(std::string_view path, metadata& metadata);
 
-    inline directory<indexing>& open_directory(std::string_view path);
-    inline directory<indexing>& create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
-    inline void close_directory(std::string_view path, directory<indexing>& directory);
-    inline void remove_directory(std::string_view path, directory<indexing>& directory);
+    inline directory<directory_entry_type>& open_directory(std::string_view path);
+    inline directory<directory_entry_type>& create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
+    inline void close_directory(std::string_view path, directory<directory_entry_type>& directory);
+    inline void remove_directory(std::string_view path, directory<directory_entry_type>& directory);
 
     inline void flush_all() const;
 
 private:
     super_object& context;
-    std::map<std::string, metadata, std::less<>> cache;
-    std::map<std::string, directory<indexing>, std::less<>> directory_cache;
+    std::map<std::string, metadata_type, std::less<>> cache;
+    std::map<std::string, directory<directory_entry_type>, std::less<>> directory_cache;
 
-    inline metadata& open(std::string_view path, std::function<typename indexing::slice_type(super_object&, std::string_view)> key_generator);
+    template<typename slice_type>
+    inline metadata& open(std::string_view path, std::function<slice_type(super_object&, std::string_view)> key_generator);
 };
 
 }
@@ -59,7 +64,8 @@ cache_store<indexing, caching_policy>::cache_store(super_object& context): conte
 
 template<typename indexing, typename caching_policy>
 inline metadata& cache_store<indexing, caching_policy>::open(std::string_view path) {
-    return open(path, indexing::make_regular_file_key);
+    auto key_generator = std::function(indexing::make_regular_file_key);
+    return open(path, key_generator);
 }
 
 template<typename indexing, typename caching_policy>
@@ -69,19 +75,26 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
     if (cache.contains(path)) {
         throw nmfs::exceptions::file_already_exist(path);
     } else {
-        typename indexing::slice_type key =
-            S_ISDIR(mode)? indexing::make_directory_key(context, path)
-            : S_ISREG(mode)? indexing::make_regular_file_key(context, path)
-            : throw nmfs::exceptions::type_not_supported(mode);
+        auto do_create = [this, path, owner, group, mode]<typename slice_type>(slice_type key) -> metadata& {
+            if (context.backend->exist(key)) {
+                throw nmfs::exceptions::file_already_exist(path);
+            } else {
+                auto emplace_result = cache.emplace(std::make_pair(
+                    std::string(path),
+                    metadata_type(context, owner_slice(std::move(key)), owner, group, mode)
+                ));
+                return emplace_result.first->second;
+            }
+        };
 
-        if (context.backend->exist(key)) {
-            throw nmfs::exceptions::file_already_exist(path);
+        if (S_ISDIR(mode)) {
+            auto key = indexing::make_directory_key(context, path);
+            return do_create(std::move(key));
+        } else if (S_ISREG(mode)) {
+            auto key = indexing::make_regular_file_key(context, path);
+            return do_create(std::move(key));
         } else {
-            auto emplace_result = cache.emplace(std::make_pair(
-                std::string(path),
-                metadata(context, owner_slice(std::move(key)), owner, group, mode)
-            ));
-            return emplace_result.first->second;
+            throw nmfs::exceptions::type_not_supported(mode);
         }
     }
 }
@@ -121,7 +134,7 @@ void cache_store<indexing, caching_policy>::remove(std::string_view path, metada
 }
 
 template<typename indexing, typename caching_policy>
-directory<indexing>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
+directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
     log::information(log_locations::cache_store_operation) << __func__ << "()\n";
     auto iterator = directory_cache.find(path);
 
@@ -138,28 +151,29 @@ directory<indexing>& cache_store<indexing, caching_policy>::open_directory(std::
     }
 
     // If directory doesn't exist, an exception will be thrown from open
-    metadata& directory_metadata = open(path, indexing::make_directory_key);
+    auto key_generator = std::function(indexing::make_directory_key);
+    metadata& directory_metadata = open(path, key_generator);
     auto emplace_result = directory_cache.emplace(std::make_pair(
         std::string(path),
-        directory<indexing>(directory_metadata)
+        directory<directory_entry_type>(directory_metadata)
     ));
     return emplace_result.first->second;
 }
 
 template<typename indexing, typename caching_policy>
-directory<indexing>& cache_store<indexing, caching_policy>::create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
+directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
     log::information(log_locations::cache_store_operation) << __func__ << "()\n";
     // If directory exists, an exception will be thrown from create
     metadata& directory_metadata = create(path, owner, group, mode);
     auto emplace_result = directory_cache.emplace(std::make_pair(
         std::string(path),
-        directory<indexing>(directory_metadata)
+        directory<directory_entry_type>(directory_metadata)
     ));
     return emplace_result.first->second;
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::close_directory(std::string_view path, directory <indexing>& directory) {
+void cache_store<indexing, caching_policy>::close_directory(std::string_view path, directory<directory_entry_type>& directory) {
     log::information(log_locations::cache_store_operation) << __func__ << "()\n";
     metadata& directory_metadata = directory.directory_metadata;
     directory_metadata.open_count--;
@@ -177,7 +191,7 @@ void cache_store<indexing, caching_policy>::close_directory(std::string_view pat
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::remove_directory(std::string_view path, directory <indexing>& directory) {
+void cache_store<indexing, caching_policy>::remove_directory(std::string_view path, directory<directory_entry_type>& directory) {
     log::information(log_locations::cache_store_operation) << __func__ << "()\n";
     metadata& directory_metadata = directory.directory_metadata;
     directory_metadata.open_count--;
@@ -204,7 +218,8 @@ void cache_store<indexing, caching_policy>::flush_all() const {
 }
 
 template<typename indexing, typename caching_policy>
-metadata& cache_store<indexing, caching_policy>::open(std::string_view path, std::function<typename indexing::slice_type(super_object&, std::string_view)> key_generator) {
+template<typename slice_type>
+metadata& cache_store<indexing, caching_policy>::open(std::string_view path, std::function<slice_type(super_object&, std::string_view)> key_generator) {
     auto iterator = cache.find(path);
 
     if (iterator != cache.end()) {
@@ -216,14 +231,14 @@ metadata& cache_store<indexing, caching_policy>::open(std::string_view path, std
         metadata.open_count++;
         return metadata;
     } else {
-        typename indexing::slice_type key = key_generator(context, path);
+        slice_type key = key_generator(context, path);
         try {
             owner_slice value = context.backend->get(key);
             auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
 
             auto emplace_result = cache.emplace(std::make_pair(
                 std::string(path),
-                metadata(context, owner_slice(std::move(key)), on_disk_metadata)
+                metadata_type(context, owner_slice(std::move(key)), on_disk_metadata)
             ));
             return emplace_result.first->second;
         } catch (kv_backends::exceptions::key_does_not_exist& e) {
