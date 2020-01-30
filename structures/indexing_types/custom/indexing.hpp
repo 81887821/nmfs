@@ -43,12 +43,16 @@ public:
     }
 
     static inline mode_t get_type(super_object& context, std::string_view path) {
-        std::string_view parent_path = get_parent_directory(path);
-        std::string_view file_name = get_filename(path);
-        auto& parent_directory = context.cache->open_directory(parent_path);
-        auto entry = parent_directory.get_entry(file_name);
+        if (path == "/") {
+            return S_IFDIR;
+        } else {
+            std::string_view parent_path = get_parent_directory(path);
+            std::string_view file_name = get_filename(path);
+            auto& parent_directory = context.cache->open_directory(parent_path);
+            auto entry = parent_directory.get_entry(file_name);
 
-        return entry.type;
+            return entry.type;
+        }
     }
 };
 
