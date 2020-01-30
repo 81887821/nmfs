@@ -151,9 +151,9 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             stat->st_atim = metadata.atime;
             stat->st_mtim = metadata.mtime;
             stat->st_ctim = metadata.ctime;
+            lock.unlock();
 
             if (!file_info) {
-                lock.unlock();
                 super_object.cache->close(path, metadata);
             }
         } else if (S_ISDIR(type)) {
@@ -171,6 +171,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             stat->st_atim = metadata.atime;
             stat->st_mtim = metadata.mtime;
             stat->st_ctim = metadata.ctime;
+            lock.unlock();
 
             super_object.cache->close_directory(path, directory);
         } else {
