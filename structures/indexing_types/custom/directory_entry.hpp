@@ -10,6 +10,7 @@ namespace nmfs::structures::indexing_types::custom {
 class directory_entry: public nmfs::structures::directory_entry {
 public:
     uuid_t uuid{};
+    mode_t type;
 
     inline directory_entry(std::string file_name, const nmfs::structures::metadata& metadata);
     inline explicit directory_entry(const byte** buffer);
@@ -18,7 +19,7 @@ public:
     [[nodiscard]] inline size_t size() const override;
 };
 
-directory_entry::directory_entry(std::string file_name, const nmfs::structures::metadata& metadata): nmfs::structures::directory_entry(std::move(file_name), metadata) {
+directory_entry::directory_entry(std::string file_name, const nmfs::structures::metadata& metadata): nmfs::structures::directory_entry(std::move(file_name), metadata), type(metadata.mode & S_IFMT) {
     auto custom_metadata = dynamic_cast<const nmfs::structures::indexing_types::custom::metadata&>(metadata);
 
     std::copy(custom_metadata.data_key_base.data(), custom_metadata.data_key_base.data() + sizeof(uuid_t), uuid);
@@ -27,6 +28,9 @@ directory_entry::directory_entry(std::string file_name, const nmfs::structures::
 directory_entry::directory_entry(const byte** buffer): nmfs::structures::directory_entry(buffer) {
     std::copy(*buffer, (*buffer) + sizeof(uuid_t), uuid);
     (*buffer) += sizeof(uuid_t);
+
+    type = *reinterpret_cast<const uint32_t*>(*buffer);
+    (*buffer) += sizeof(uint32_t);
 }
 
 on_disk_size_type directory_entry::serialize(byte* buffer) const {
@@ -35,11 +39,14 @@ on_disk_size_type directory_entry::serialize(byte* buffer) const {
     std::copy(uuid, uuid + sizeof(uuid), current);
     current += sizeof(uuid);
 
+    *reinterpret_cast<uint32_t*>(current) = type;
+    current += sizeof(uint32_t);
+
     return current - buffer;
 }
 
 size_t directory_entry::size() const {
-    return nmfs::structures::directory_entry::size() + sizeof(uuid_t);
+    return nmfs::structures::directory_entry::size() + sizeof(uuid_t) + sizeof(uint32_t);
 }
 
 }

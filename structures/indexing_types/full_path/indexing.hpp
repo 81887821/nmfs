@@ -31,6 +31,10 @@ public:
     static inline borrower_slice new_regular_file_key(super_object& context, std::string_view path, metadata_type& metadata) {
         return existing_directory_key(context, path);
     }
+
+    static inline mode_t get_type(super_object& context, std::string_view path) {
+        return S_IFREG;
+    }
 };
 
 }

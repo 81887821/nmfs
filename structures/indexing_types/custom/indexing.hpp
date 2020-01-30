@@ -41,6 +41,15 @@ public:
     static inline borrower_slice new_regular_file_key(super_object& context, std::string_view path, metadata_type& metadata) {
         return borrower_slice(metadata.data_key_base.data(), metadata.data_key_base.size());
     }
+
+    static inline mode_t get_type(super_object& context, std::string_view path) {
+        std::string_view parent_path = get_parent_directory(path);
+        std::string_view file_name = get_filename(path);
+        auto& parent_directory = context.cache->open_directory(parent_path);
+        auto entry = parent_directory.get_entry(file_name);
+
+        return entry.type;
+    }
 };
 
 }

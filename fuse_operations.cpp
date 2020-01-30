@@ -136,8 +136,9 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *reinterpret_cast<structures::super_object*>(fuse_context->private_data);
     try {
-        try {
-            // if file
+        mode_t type = file_info? S_IFREG : super_object::indexing_type::get_type(super_object, path);
+
+        if (S_ISREG(type)) {
             auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object.cache->open(path);
 
             std::memset(stat, 0, sizeof(struct stat));
@@ -153,7 +154,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             if (!file_info) {
                 super_object.cache->close(path, metadata);
             }
-        } catch (nmfs::exceptions::file_does_not_exist&) {
+        } else if (S_ISDIR(type)) {
             // if directory
             auto& directory = super_object.cache->open_directory(path);
             auto& metadata = directory.directory_metadata;
@@ -169,6 +170,9 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             stat->st_ctim = metadata.ctime;
 
             super_object.cache->close_directory(path, directory);
+        } else {
+            log::error(log_locations::fuse_operation) << std::showbase << __func__ << " failed: Unsupported file type " << std::hex << type << '\n';
+            return -EFAULT;
         }
 
         return 0;
