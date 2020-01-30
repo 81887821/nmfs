@@ -40,7 +40,6 @@ inline data_object_key::data_object_key(const slice& base, uint32_t index)
 }
 
 inline void data_object_key::update_index(uint32_t new_index) {
-    log::information(log_locations::file_data_operation) << __func__ << "(" << new_index << ")\n";
     this->index = new_index;
     *reinterpret_cast<uint32_t*>(&memory[base_length + 1]) = to_key_index(index);
 }
