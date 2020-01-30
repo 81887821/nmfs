@@ -107,6 +107,8 @@ inline void directory<directory_entry_type>::flush() const {
         directory_metadata.write(serialize().get(), size, 0);
         directory_metadata.flush();
         dirty = false;
+    } else if (directory_metadata.dirty) {
+        directory_metadata.flush();
     }
 }
 
