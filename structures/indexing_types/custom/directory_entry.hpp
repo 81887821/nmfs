@@ -20,7 +20,7 @@ public:
 };
 
 directory_entry::directory_entry(std::string file_name, const nmfs::structures::metadata& metadata): nmfs::structures::directory_entry(std::move(file_name), metadata), type(metadata.mode & S_IFMT) {
-    auto custom_metadata = dynamic_cast<const nmfs::structures::indexing_types::custom::metadata&>(metadata);
+    auto& custom_metadata = dynamic_cast<const nmfs::structures::indexing_types::custom::metadata&>(metadata);
 
     std::copy(custom_metadata.data_key_base.data(), custom_metadata.data_key_base.data() + sizeof(uuid_t), uuid);
 }

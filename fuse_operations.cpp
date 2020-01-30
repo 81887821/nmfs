@@ -140,6 +140,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
 
         if (S_ISREG(type)) {
             auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object.cache->open(path);
+            auto lock = std::shared_lock(*metadata.mutex);
 
             std::memset(stat, 0, sizeof(struct stat));
             stat->st_nlink = metadata.link_count;
@@ -152,12 +153,14 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             stat->st_ctim = metadata.ctime;
 
             if (!file_info) {
+                lock.unlock();
                 super_object.cache->close(path, metadata);
             }
         } else if (S_ISDIR(type)) {
             // if directory
             auto& directory = super_object.cache->open_directory(path);
             auto& metadata = directory.directory_metadata;
+            auto lock = std::shared_lock(*metadata.mutex);
 
             std::memset(stat, 0, sizeof(struct stat));
             stat->st_nlink = metadata.link_count;
@@ -355,12 +358,14 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
 
     try {
         auto& metadata = file_info? *reinterpret_cast<structures::metadata*>(file_info->fh) : super_object.cache->open(path);
+        auto lock = std::unique_lock(*metadata.mutex);
 
         mode_t file_type = mode & S_IFMT;
         metadata.mode = mode | file_type;
         metadata.dirty = true;
 
         if (!file_info) {
+            lock.unlock();
             super_object.cache->close(path, metadata);
         }
 

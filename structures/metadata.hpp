@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <cstdint>
 #include <cstdlib>
+#include <shared_mutex>
 #include <string>
 #include "../primitive_types.hpp"
 #include "../memory_slices/owner_slice.hpp"
@@ -27,6 +28,7 @@ public:
     struct timespec mtime;
     struct timespec ctime;
     mutable bool dirty = false;
+    mutable std::shared_ptr<std::shared_mutex> mutex;
 
     metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
     metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure);

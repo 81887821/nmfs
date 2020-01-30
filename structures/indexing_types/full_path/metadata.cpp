@@ -16,6 +16,8 @@ metadata::~metadata() {
 }
 
 void metadata::flush() const {
+    auto lock = std::shared_lock(*mutex);
+
     if (dirty) {
         on_disk::metadata on_disk_structure {};
         to_on_disk_metadata(on_disk_structure);
