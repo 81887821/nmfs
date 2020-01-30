@@ -175,7 +175,6 @@ void cache_store<indexing, caching_policy>::remove(std::string_view path, metada
 template<typename indexing, typename caching_policy>
 directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
-    auto directory_unique_lock = std::unique_lock(directory_cache_mutex, std::defer_lock);
     auto directory_shared_lock = std::shared_lock(directory_cache_mutex);
     auto iterator = directory_cache.find(path);
 
@@ -189,18 +188,16 @@ directory<typename indexing::directory_entry_type>& cache_store<indexing, cachin
             return directory;
         } else {
             // Drop directory cache and reopen
-            directory_unique_lock.lock();
+            auto directory_unique_lock = std::unique_lock(directory_cache_mutex, std::defer_lock);
             directory_cache.erase(iterator);
         }
-    }
-
-    if (!directory_unique_lock) {
-        directory_unique_lock.lock();
     }
 
     // If directory doesn't exist, an exception will be thrown from open
     auto key_generator = std::function(indexing::existing_directory_key);
     metadata& directory_metadata = open(path, key_generator);
+
+    auto directory_unique_lock = std::unique_lock(directory_cache_mutex, std::defer_lock);
     auto emplace_result = directory_cache.emplace(std::make_pair(
         std::string(path),
         directory<directory_entry_type>(directory_metadata)
@@ -236,6 +233,7 @@ void cache_store<indexing, caching_policy>::close_directory(std::string_view pat
         if (iterator != directory_cache.end()) {
             assert(&(iterator->second) == &directory); // assert if path and directory is different
             directory_cache.erase(iterator);
+            lock.unlock();
             drop_if_policy_requires(path, directory_metadata);
         } else {
             // TODO: Error handling - there is no cache with given path
@@ -341,7 +339,6 @@ void cache_store<indexing, caching_policy>::flush_directories() const {
         const auto& metadata = directory.directory_metadata;
 
         if (S_ISDIR(metadata.mode) && metadata.dirty) {
-            auto metadata_lock = std::shared_lock(*metadata.mutex);
             directory.flush();
         }
     }
@@ -354,7 +351,6 @@ void cache_store<indexing, caching_policy>::flush_regular_files() const {
         const metadata_type& metadata = cache_entry.second;
 
         if (S_ISREG(metadata.mode) && metadata.dirty) {
-            auto metadata_lock = std::shared_lock(*metadata.mutex);
             metadata.flush();
         }
     }
