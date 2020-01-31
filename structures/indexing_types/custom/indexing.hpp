@@ -26,7 +26,7 @@ public:
         std::string_view parent_path = get_parent_directory(path);
         std::string_view file_name = get_filename(path);
         auto& parent_directory = context.cache->open_directory(parent_path);
-        auto entry = parent_directory.get_entry(file_name);
+        auto& entry = parent_directory.get_entry(file_name);
         auto key = owner_slice(sizeof(uuid_t));
 
         std::copy(entry.uuid, entry.uuid + sizeof(uuid_t), key.data());
@@ -49,7 +49,7 @@ public:
             std::string_view parent_path = get_parent_directory(path);
             std::string_view file_name = get_filename(path);
             auto& parent_directory = context.cache->open_directory(parent_path);
-            auto entry = parent_directory.get_entry(file_name);
+            auto& entry = parent_directory.get_entry(file_name);
 
             return entry.type;
         }

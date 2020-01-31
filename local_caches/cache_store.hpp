@@ -38,11 +38,14 @@ public:
     inline void close(std::string_view path, metadata& metadata);
     inline void drop_if_policy_requires(std::string_view path, metadata& metadata);
     inline void remove(std::string_view path, metadata& metadata);
+    inline void move(std::string_view old_path, std::string_view new_path);
+    inline mode_t get_type(std::string_view path);
 
     inline directory<directory_entry_type>& open_directory(std::string_view path);
     inline directory<directory_entry_type>& create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
     inline void close_directory(std::string_view path, directory<directory_entry_type>& directory);
     inline void remove_directory(std::string_view path, directory<directory_entry_type>& directory);
+    inline void move_directory(std::string_view old_path, std::string_view new_path);
 
     inline void flush_all() const;
 
@@ -173,6 +176,35 @@ void cache_store<indexing, caching_policy>::remove(std::string_view path, metada
 }
 
 template<typename indexing, typename caching_policy>
+void cache_store<indexing, caching_policy>::move(std::string_view old_path, std::string_view new_path) {
+    log::information(log_locations::cache_store_operation) << __func__ << "(old_path = " << old_path << ", new_path = " << new_path << ")\n";
+    auto& metadata = reinterpret_cast<metadata_type&>(open(old_path)); // To ensure metadata is in cache
+    auto metadata_iterator = cache.find(old_path);
+
+    if (metadata.open_count > 1) {
+        log::warning(log_locations::cache_store_operation) << __func__ << ": Renaming opened file. open_count = " << metadata.open_count << '\n';
+    }
+
+    auto new_metadata_key = indexing::new_directory_key(context, new_path, metadata);
+    auto emplace_result = cache.emplace(std::make_pair(
+        std::string(new_path),
+        metadata_type(std::move(metadata), owner_slice(std::move(new_metadata_key)))
+    ));
+    auto& new_metadata = emplace_result.first->second;
+
+    if (metadata.key != new_metadata.key) {
+        metadata.remove();
+    }
+
+    cache.erase(metadata_iterator);
+}
+
+template<typename indexing, typename caching_policy>
+mode_t cache_store<indexing, caching_policy>::get_type(std::string_view path) {
+    return indexing::get_type(context, path);
+}
+
+template<typename indexing, typename caching_policy>
 directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     auto directory_shared_lock = std::shared_lock(directory_cache_mutex);
@@ -256,6 +288,38 @@ void cache_store<indexing, caching_policy>::remove_directory(std::string_view pa
     auto lock = std::scoped_lock(directory_cache_mutex, cache_mutex);
     directory_cache.erase(directory_cache.find(path));
     cache.erase(cache.find(path));
+}
+
+template<typename indexing, typename caching_policy>
+void cache_store<indexing, caching_policy>::move_directory(std::string_view old_path, std::string_view new_path) {
+    log::information(log_locations::cache_store_operation) << __func__ << "(old_path = " << old_path << ", new_path = " << new_path << ")\n";
+    auto& directory = open_directory(old_path); // To ensure directory is in cache
+    auto& directory_metadata = dynamic_cast<metadata_type&>(directory.directory_metadata);
+    auto directory_iterator = directory_cache.find(old_path);
+    auto metadata_iterator = cache.find(old_path);
+
+    if (directory_metadata.open_count > 1) {
+        log::warning(log_locations::cache_store_operation) << __func__ << ": Renaming opened directory. open_count = " << directory_metadata.open_count << '\n';
+    }
+
+    auto new_metadata_key = indexing::new_directory_key(context, new_path, directory_metadata);
+    cache.emplace(std::make_pair(
+        std::string(new_path),
+        metadata_type(std::move(directory_metadata), owner_slice(std::move(new_metadata_key)))
+    ));
+
+    auto directory_emplace_result = directory_cache.emplace(std::make_pair(
+        std::string(new_path),
+        nmfs::structures::directory<directory_entry_type>(std::move(directory), old_path, new_path)
+    ));
+    auto& new_directory = directory_emplace_result.first->second;
+
+    if (new_directory.directory_metadata.key != directory_metadata.key) {
+        directory_metadata.remove();
+    }
+
+    directory_cache.erase(directory_iterator);
+    cache.erase(metadata_iterator);
 }
 
 template<typename indexing, typename caching_policy>

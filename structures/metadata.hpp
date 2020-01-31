@@ -32,6 +32,8 @@ public:
 
     metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
     metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure);
+    metadata(metadata&& other, owner_slice key);
+    metadata(metadata&& other, owner_slice key, const slice& new_data_key_base);
     virtual inline ~metadata() = default;
 
     ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
@@ -45,6 +47,7 @@ public:
      * Discard local metadata contents and reload from backend
      */
     virtual void reload() = 0;
+    virtual void move_data(const slice& new_data_key_base) = 0;
     void remove();
 
 protected:

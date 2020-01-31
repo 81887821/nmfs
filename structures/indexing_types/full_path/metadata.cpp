@@ -1,5 +1,6 @@
 #include "metadata.hpp"
 #include "../../../memory_slices/borrower_slice.hpp"
+#include "../../../kv_backends/exceptions/key_does_not_exist.hpp"
 
 using namespace nmfs::structures::indexing_types::full_path;
 
@@ -10,6 +11,10 @@ metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key,
 metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key, const on_disk::metadata* on_disk_data)
     : nmfs::structures::metadata(super, std::move(key), on_disk_data) {
 }
+metadata::metadata(metadata&& other, nmfs::owner_slice key)
+    : nmfs::structures::metadata(std::move(other), std::move(key)) {
+}
+
 
 metadata::~metadata() {
     metadata::flush();
@@ -31,6 +36,21 @@ void metadata::flush() const {
 
 void metadata::reload() {
     // TODO
+}
+
+void metadata::move_data(const slice& new_data_key_base) {
+    auto old_data_key = nmfs::structures::utils::data_object_key(key, 0);
+    auto new_data_key = nmfs::structures::utils::data_object_key(new_data_key_base, 0);
+
+    for (size_t i = 0; i < size / context.maximum_object_size; i++) {
+        try {
+            owner_slice data = context.backend->get(old_data_key);
+            context.backend->remove(old_data_key);
+            context.backend->put(new_data_key, data);
+        } catch (nmfs::kv_backends::exceptions::key_does_not_exist&) {
+            continue;
+        }
+    }
 }
 
 nmfs::structures::utils::data_object_key metadata::get_data_object_key(uint32_t index) const {

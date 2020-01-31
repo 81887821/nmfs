@@ -1,6 +1,7 @@
 #ifndef NMFS_MEMORY_SLICES_SLICE_HPP
 #define NMFS_MEMORY_SLICES_SLICE_HPP
 
+#include <algorithm>
 #include <stdexcept>
 #include <cstdint>
 #include "../primitive_types.hpp"
@@ -27,6 +28,9 @@ public:
     [[nodiscard]] constexpr const_iterator cbegin() const noexcept;
     [[nodiscard]] constexpr iterator end() noexcept;
     [[nodiscard]] constexpr const_iterator cend() const noexcept;
+
+    [[nodiscard]] inline bool operator==(const slice& other) const;
+    [[nodiscard]] inline bool operator!=(const slice& other) const;
 
 protected:
     size_t memory_capacity;
@@ -79,6 +83,14 @@ constexpr slice::iterator slice::end() noexcept {
 
 constexpr slice::const_iterator slice::cend() const noexcept {
     return data() + data_size;
+}
+
+bool slice::operator==(const slice& other) const {
+    return std::equal(cbegin(), cend(), other.cbegin(), other.cend());
+}
+
+bool slice::operator!=(const slice& other) const {
+    return !operator==(other);
 }
 
 }

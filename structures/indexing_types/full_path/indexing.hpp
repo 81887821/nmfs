@@ -33,7 +33,11 @@ public:
     }
 
     static inline mode_t get_type(super_object& context, std::string_view path) {
-        return S_IFREG;
+        auto& metadata = context.cache->open(path);
+        mode_t mode = metadata.mode;
+        context.cache->close(path, metadata);
+
+        return mode;
     }
 };
 

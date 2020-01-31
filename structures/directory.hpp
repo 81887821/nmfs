@@ -11,6 +11,7 @@
 #include "metadata.hpp"
 #include "../exceptions/is_not_directory.hpp"
 #include "../exceptions/file_does_not_exist.hpp"
+#include "../exceptions/type_not_supported.hpp"
 #include "../logger/log.hpp"
 
 namespace nmfs::structures {
@@ -21,6 +22,7 @@ public:
     metadata& directory_metadata;
 
     explicit inline directory(metadata& metadata);
+    inline directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path);
     inline ~directory();
 
     inline void add_file(std::string_view file_name, const metadata& metadata);
@@ -28,8 +30,10 @@ public:
     inline void flush() const;
     inline void fill_buffer(const fuse_directory_filler& filler);
     [[nodiscard]] constexpr size_t number_of_files() const;
+    [[nodiscard]] constexpr bool empty() const;
     inline void remove();
     inline const directory_entry_type& get_entry(std::string_view file_name) const;
+    inline void move_entry(std::string_view old_path, std::string_view new_path, directory& target_directory);
 
 protected:
     std::set<directory_entry_type> files;
@@ -56,6 +60,34 @@ inline directory<directory_entry_type>::directory(nmfs::structures::metadata& me
         metadata.read(buffer.get(), metadata.size, 0);
         parse(std::move(buffer));
     }
+}
+
+template<typename directory_entry_type>
+directory<directory_entry_type>::directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path)
+    : directory_metadata(other.directory_metadata),
+      /* Moving files and size is deferred until moving children is finished */
+      mutex(std::make_shared<std::shared_mutex>()) {
+    other.dirty = false;
+
+    for (const auto& file: files) {
+        std::string old_path = std::string(old_directory_path) + path_delimiter + file.file_name;
+        std::string new_path = std::string(new_directory_path) + path_delimiter + file.file_name;
+        mode_t type = directory_metadata.context.cache->get_type(old_path);
+
+        if (S_ISDIR(type)) {
+            directory_metadata.context.cache->move_directory(old_path, new_path);
+        } else if (S_ISREG(type)) {
+            directory_metadata.context.cache->move(old_path, new_path);
+        } else {
+            throw nmfs::exceptions::type_not_supported(type);
+        }
+    }
+
+    files = std::move(other.files);
+    size = other.size;
+    other.size = 0;
+    dirty = true;
+    other.dirty = false;
 }
 
 template<typename directory_entry_type>
@@ -159,6 +191,11 @@ constexpr size_t directory<directory_entry_type>::number_of_files() const {
 }
 
 template<typename directory_entry_type>
+constexpr bool directory<directory_entry_type>::empty() const {
+    return files.empty();
+}
+
+template<typename directory_entry_type>
 void directory<directory_entry_type>::remove() {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
     auto lock = std::unique_lock(*mutex);
@@ -176,6 +213,29 @@ const directory_entry_type& directory<directory_entry_type>::get_entry(std::stri
         return *iterator;
     } else {
         throw nmfs::exceptions::file_does_not_exist(file_name);
+    }
+}
+
+template<typename directory_entry_type>
+void directory<directory_entry_type>::move_entry(std::string_view old_path, std::string_view new_path, directory& target_directory) {
+    std::string_view old_file_name = get_filename(old_path);
+    std::string_view new_file_name = get_filename(new_path);
+    auto iterator = std::find_if(files.begin(), files.end(), directory_entry_type::find_by_name(old_file_name));
+
+    if (iterator != files.end()) {
+        size_t entry_size = iterator->size();
+        auto entry = files.extract(iterator);
+        size -= entry_size;
+        dirty = true;
+
+        entry.value().file_name = std::string(new_file_name);
+        entry_size = entry.value().size();
+
+        auto insert_result = target_directory.files.insert(std::move(entry));
+        target_directory.size += entry_size;
+        target_directory.dirty = true;
+    } else {
+        throw nmfs::exceptions::file_does_not_exist(old_path);
     }
 }
 

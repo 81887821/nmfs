@@ -1,4 +1,5 @@
 #include <sys/stat.h>
+#include <linux/fs.h>
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -346,8 +347,80 @@ int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, un
 #ifdef DEBUG
     log::information(log_locations::fuse_operation) << __func__ << "(old_path = " << old_path << ", new_path = " << new_path << ", flags = " << flags << ")\n";
 #endif
+    fuse_context* fuse_context = fuse_get_context();
+    auto& super_object = *reinterpret_cast<structures::super_object*>(fuse_context->private_data);
 
-    return 0;
+    if (flags & RENAME_EXCHANGE) {
+        return -ENOTSUP;
+    }
+
+    try {
+        mode_t type = super_object::indexing_type::get_type(super_object, old_path);
+        bool target_exist = true;
+        mode_t target_type;
+
+        try {
+            target_type = super_object::indexing_type::get_type(super_object, new_path);
+        } catch (nmfs::exceptions::file_does_not_exist&) {
+            target_exist = false;
+        }
+
+        if ((flags & RENAME_NOREPLACE) && target_exist) {
+            return -EEXIST;
+        } else if (S_ISDIR(type)) {
+            if (target_exist) {
+                if (S_ISDIR(target_type)) {
+                    auto& target_directory = super_object.cache->open_directory(new_path);
+
+                    if (target_directory.empty()) {
+                        super_object.cache->remove_directory(new_path, target_directory);
+                        /* Proceeds to moving directory */
+                    } else {
+                        return -ENOTEMPTY;
+                    }
+                } else {
+                    return -ENOTDIR;
+                }
+            }
+            /* Moving directory */
+            super_object.cache->move_directory(old_path, new_path);
+            /* Proceeds to directory management */
+        } else if (S_ISREG(type)) {
+            if (target_exist) {
+                if (!S_ISDIR(target_type)) {
+                    auto& target = super_object.cache->open(new_path);
+                    super_object.cache->remove(new_path, target);
+                    /* Proceeds to moving regular file */
+                } else {
+                    return -EISDIR;
+                }
+            }
+            /* Moving regular file */
+            super_object.cache->move(old_path, new_path);
+            /* Proceeds to directory management */
+        } else {
+            throw nmfs::exceptions::type_not_supported(type);
+        }
+
+        /* Directory management */
+        std::string_view old_parent_path = get_parent_directory(old_path);
+        std::string_view new_parent_path = get_parent_directory(new_path);
+        auto& old_parent_directory = super_object.cache->open_directory(old_parent_path);
+        auto& new_parent_directory = super_object.cache->open_directory(new_parent_path);
+
+        old_parent_directory.move_entry(old_path, new_path, new_parent_directory);
+
+        super_object.cache->close_directory(new_parent_path, new_parent_directory);
+        super_object.cache->close_directory(old_parent_path, old_parent_directory);
+
+        return 0;
+    } catch (nmfs::exceptions::nmfs_exception& e) {
+        log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return e.error_code();
+    } catch (std::exception& e) {
+        log::error(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
+        return -EIO;
+    }
 }
 
 int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file_info* file_info) {
@@ -572,7 +645,7 @@ int nmfs::fuse_operations::utimens(const char* path, const struct timespec tv[2]
     operations.create = create;
     operations.unlink = unlink;
 
-    //operations.rename = rename;
+    operations.rename = rename;
     operations.chmod = chmod;
     operations.chown = chown;
     operations.truncate = truncate;

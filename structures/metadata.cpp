@@ -45,6 +45,46 @@ metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata
       mutex(std::make_shared<std::shared_mutex>()) {
 }
 
+metadata::metadata(metadata&& other, nmfs::owner_slice key)
+    : context(other.context),
+      key(0), /* Key is needed for moving data, so key will moved later */
+      open_count(1),
+      link_count(other.link_count),
+      owner(other.owner),
+      group(other.group),
+      mode(other.mode),
+      size(other.size),
+      atime(other.atime),
+      mtime(other.mtime),
+      ctime(other.ctime),
+      dirty(true),
+      mutex(std::make_shared<std::shared_mutex>()) {
+    other.dirty = false;
+    other.move_data(key);
+    other.size = 0;
+    key = std::move(key);
+}
+
+metadata::metadata(metadata&& other, nmfs::owner_slice key, const slice& new_data_key_base)
+    : context(other.context),
+      key(0), /* Key is needed for moving data, so key will moved later */
+      open_count(1),
+      link_count(other.link_count),
+      owner(other.owner),
+      group(other.group),
+      mode(other.mode),
+      size(other.size),
+      atime(other.atime),
+      mtime(other.mtime),
+      ctime(other.ctime),
+      dirty(true),
+      mutex(std::make_shared<std::shared_mutex>()) {
+    other.dirty = false;
+    other.move_data(new_data_key_base);
+    other.size = 0;
+    key = std::move(key);
+}
+
 ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(size = " << size_to_write << ", offset = " << offset << ")\n";
     log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer, size_to_write) << '\n';
