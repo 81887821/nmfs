@@ -27,6 +27,7 @@ add_executable(nmfs
         structures/metadata.cpp
         structures/metadata.hpp
         structures/directory.hpp
+        structures/directory.impl.hpp
         structures/on_disk/super_object.hpp
         structures/on_disk/metadata.hpp
         structures/utils/data_object_key.hpp
@@ -37,6 +38,7 @@ add_executable(nmfs
         local_caches/caching_policy/evict_on_last_close.hpp
         local_caches/cache_store.fwd.hpp
         local_caches/cache_store.hpp
+        local_caches/cache_store.impl.hpp
         structures/indexing_types/all.hpp
         structures/indexing_types/all.fwd.hpp
         structures/indexing_types/full_path/indexing.hpp

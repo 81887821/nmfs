@@ -19,6 +19,8 @@
 #include "local_caches/cache_store.hpp"
 #include "local_caches/caching_policy/all.hpp"
 #include "structures/indexing_types/all.hpp"
+#include "local_caches/cache_store.impl.hpp"
+#include "structures/directory.impl.hpp"
 
 using namespace nmfs;
 
