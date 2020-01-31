@@ -1,6 +1,8 @@
 #ifndef NMFS_STRUCTURES_DIRECTORY_IMPL_HPP
 #define NMFS_STRUCTURES_DIRECTORY_IMPL_HPP
 
+#include "../utils.hpp"
+
 namespace nmfs::structures {
 
 template<typename directory_entry_type>

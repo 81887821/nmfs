@@ -7,6 +7,7 @@
 #include "../../../memory_slices/borrower_slice.hpp"
 #include "../../directory_entry.hpp"
 #include "metadata.hpp"
+#include "../../../local_caches/cache_store.hpp"
 
 namespace nmfs::structures::indexing_types::full_path {
 
