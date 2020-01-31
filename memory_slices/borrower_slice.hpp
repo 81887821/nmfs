@@ -25,8 +25,8 @@ public:
     template<typename type, size_t array_size>
     constexpr borrower_slice(std::array<type, array_size>& array);
 
-    [[nodiscard]] inline byte* data() final;
-    [[nodiscard]] inline const byte* data() const final;
+    [[nodiscard]] inline byte* data() noexcept final;
+    [[nodiscard]] inline const byte* data() const noexcept final;
 
 protected:
     void* memory;
@@ -47,11 +47,11 @@ template<typename type, size_t array_size>
 constexpr borrower_slice::borrower_slice(std::array<type, array_size>& array): slice(array_size * sizeof(type)), memory(array.data()) {
 }
 
-byte* borrower_slice::data() {
+byte* borrower_slice::data() noexcept {
     return static_cast<byte*>(memory);
 }
 
-const byte* borrower_slice::data() const {
+const byte* borrower_slice::data() const noexcept {
     return static_cast<const byte*>(memory);
 }
 

@@ -12,13 +12,21 @@ namespace nmfs {
  */
 class slice {
 public:
-    [[nodiscard]] virtual byte* data() = 0;
-    [[nodiscard]] virtual const byte* data() const = 0;
+    using iterator = byte*;
+    using const_iterator = const byte*;
+
+    [[nodiscard]] virtual byte* data() noexcept = 0;
+    [[nodiscard]] virtual const byte* data() const noexcept = 0;
     [[nodiscard]] constexpr size_t capacity() const;
     [[nodiscard]] constexpr size_t size() const;
     constexpr void set_size(size_t new_size);
     [[nodiscard]] inline std::string to_string() const;
     [[nodiscard]] constexpr std::string_view to_string_view() const;
+
+    [[nodiscard]] constexpr iterator begin() noexcept;
+    [[nodiscard]] constexpr const_iterator cbegin() const noexcept;
+    [[nodiscard]] constexpr iterator end() noexcept;
+    [[nodiscard]] constexpr const_iterator cend() const noexcept;
 
 protected:
     size_t memory_capacity;
@@ -55,6 +63,22 @@ std::string slice::to_string() const {
 
 constexpr std::string_view slice::to_string_view() const {
     return std::string_view(data(), data_size);
+}
+
+constexpr slice::iterator slice::begin() noexcept {
+    return data();
+}
+
+constexpr slice::const_iterator slice::cbegin() const noexcept {
+    return data();
+}
+
+constexpr slice::iterator slice::end() noexcept {
+    return data() + data_size;
+}
+
+constexpr slice::const_iterator slice::cend() const noexcept {
+    return data() + data_size;
 }
 
 }
