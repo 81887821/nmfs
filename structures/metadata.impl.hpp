@@ -1,3 +1,6 @@
+#ifndef NMFS_STRUCTURES_METADATA_IMPL_HPP
+#define NMFS_STRUCTURES_METADATA_IMPL_HPP
+
 #include <utility>
 #include "metadata.hpp"
 #include "../logger/log.hpp"
@@ -6,13 +9,12 @@
 #include "../kv_backends/exceptions/key_does_not_exist.hpp"
 #include "../kv_backends/exceptions/generic_kv_api_failure.hpp"
 #include "utils/data_object_key.hpp"
-#include "super_object.hpp"
-#include "indexing_types/custom/metadata.hpp"
+#include "super_object.impl.hpp"
 
+namespace nmfs::structures {
 
-using namespace nmfs::structures;
-
-metadata::metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode)
+template<typename indexing>
+metadata<indexing>::metadata(super_object<indexing>& super, owner_slice key, uid_t owner, gid_t group, mode_t mode)
     : context(super),
       key(std::move(key)),
       open_count(1),
@@ -30,7 +32,8 @@ metadata::metadata(super_object& super, owner_slice key, uid_t owner, gid_t grou
     ctime = atime;
 }
 
-metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure)
+template<typename indexing>
+metadata<indexing>::metadata(super_object<indexing>& super, owner_slice key, const on_disk::metadata* on_disk_structure)
     : context(super),
       key(std::move(key)),
       open_count(1),
@@ -45,7 +48,8 @@ metadata::metadata(super_object& super, owner_slice key, const on_disk::metadata
       mutex(std::make_shared<std::shared_mutex>()) {
 }
 
-metadata::metadata(metadata&& other, nmfs::owner_slice key)
+template<typename indexing>
+metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key)
     : context(other.context),
       key(0), /* Key is needed for moving data, so key will moved later */
       open_count(1),
@@ -65,7 +69,8 @@ metadata::metadata(metadata&& other, nmfs::owner_slice key)
     key = std::move(key);
 }
 
-metadata::metadata(metadata&& other, nmfs::owner_slice key, const slice& new_data_key_base)
+template<typename indexing>
+metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key, const slice& new_data_key_base)
     : context(other.context),
       key(0), /* Key is needed for moving data, so key will moved later */
       open_count(1),
@@ -85,7 +90,8 @@ metadata::metadata(metadata&& other, nmfs::owner_slice key, const slice& new_dat
     key = std::move(key);
 }
 
-ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) {
+template<typename indexing>
+ssize_t metadata<indexing>::write(const byte* buffer, size_t size_to_write, off_t offset) {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(size = " << size_to_write << ", offset = " << offset << ")\n";
     log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer, size_to_write) << '\n';
 
@@ -116,7 +122,8 @@ ssize_t metadata::write(const byte* buffer, size_t size_to_write, off_t offset) 
     return size_to_write;
 }
 
-ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
+template<typename indexing>
+ssize_t metadata<indexing>::read(byte* buffer, size_t size_to_read, off_t offset) const {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(size = " << size_to_read << ", offset = " << offset << ")\n";
 
     auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
@@ -156,7 +163,8 @@ ssize_t metadata::read(byte* buffer, size_t size_to_read, off_t offset) const {
     return size_to_read;
 }
 
-void metadata::truncate(off_t new_size) {
+template<typename indexing>
+void metadata<indexing>::truncate(off_t new_size) {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(new_size = " << new_size << ")\n";
 
     auto lock = std::unique_lock(*mutex);
@@ -173,7 +181,8 @@ void metadata::truncate(off_t new_size) {
     }
 }
 
-void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
+template<typename indexing>
+void metadata<indexing>::remove_data_objects(uint32_t index_from, uint32_t index_to) {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << __func__ << "(index_from = " << index_from << ", index_to = " << index_to << ")\n";
     /* Assume mutex is exclusively locked */
     auto data_key = nmfs::structures::utils::data_object_key(key, index_from);
@@ -187,11 +196,13 @@ void metadata::remove_data_objects(uint32_t index_from, uint32_t index_to) {
     }
 }
 
-void metadata::reload() {
+template<typename indexing>
+void metadata<indexing>::reload() {
     // TODO
 }
 
-void metadata::remove() {
+template<typename indexing>
+void metadata<indexing>::remove() {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "()\n";
     auto lock = std::unique_lock(*mutex);
 
@@ -200,7 +211,8 @@ void metadata::remove() {
     dirty = false;
 }
 
-void metadata::to_on_disk_metadata(on_disk::metadata& on_disk_metadata) const {
+template<typename indexing>
+void metadata<indexing>::to_on_disk_metadata(on_disk::metadata& on_disk_metadata) const {
     on_disk_metadata.link_count = link_count;
     on_disk_metadata.owner = owner;
     on_disk_metadata.group = group;
@@ -210,3 +222,7 @@ void metadata::to_on_disk_metadata(on_disk::metadata& on_disk_metadata) const {
     on_disk_metadata.mtime = mtime;
     on_disk_metadata.ctime = ctime;
 }
+
+}
+
+#endif //NMFS_STRUCTURES_METADATA_IMPL_HPP

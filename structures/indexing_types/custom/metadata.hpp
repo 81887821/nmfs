@@ -6,12 +6,12 @@
 
 namespace nmfs::structures::indexing_types::custom {
 
-class metadata: public nmfs::structures::metadata {
+class metadata: public nmfs::structures::metadata<indexing> {
 public:
     owner_slice data_key_base;
 
-    metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
-    metadata(super_object& super, owner_slice key, const nmfs::structures::on_disk::metadata* on_disk_data);
+    metadata(super_object<indexing>& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
+    metadata(super_object<indexing>& super, owner_slice key, const nmfs::structures::on_disk::metadata* on_disk_data);
     metadata(metadata&& other, owner_slice key);
     ~metadata() override;
 

@@ -9,7 +9,7 @@
 namespace nmfs {
 
 template<typename indexing, typename caching_policy>
-cache_store<indexing, caching_policy>::cache_store(super_object& context)
+cache_store<indexing, caching_policy>::cache_store(super_object<indexing>& context)
     : context(context),
       background_worker(std::bind(&cache_store::background_worker_main, this)) {
 }
@@ -21,14 +21,14 @@ cache_store<indexing, caching_policy>::~cache_store() {
 }
 
 template<typename indexing, typename caching_policy>
-inline metadata& cache_store<indexing, caching_policy>::open(std::string_view path) {
+inline metadata<indexing>& cache_store<indexing, caching_policy>::open(std::string_view path) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     auto key_generator = std::function(indexing::existing_regular_file_key);
     return open(path, key_generator);
 }
 
 template<typename indexing, typename caching_policy>
-metadata& cache_store<indexing, caching_policy>::create(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
+metadata<indexing>& cache_store<indexing, caching_policy>::create(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
     log::information(log_locations::cache_store_operation) << std::showbase << __func__ << "(path = " << path << ", owner = " << owner << ", group = " << group << ", mode = " << std::oct << mode << ")\n";
 
     auto shared_cache_lock = std::shared_lock(cache_mutex);
@@ -41,7 +41,7 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
     } else {
         auto temporary_metadata = metadata_type(context, owner_slice(0), owner, group, mode);
         auto do_create = [this, path, owner, group, mode, &temporary_metadata] < typename slice_type > (slice_type
-        key) -> metadata & {
+        key) -> metadata<indexing> & {
             if (context.backend->exist(key)) {
                 throw nmfs::exceptions::file_already_exist(path);
             } else {
@@ -72,7 +72,7 @@ metadata& cache_store<indexing, caching_policy>::create(std::string_view path, u
 }
 
 template<typename indexing, typename caching_policy>
-inline void cache_store<indexing, caching_policy>::close(std::string_view path, metadata& metadata) {
+inline void cache_store<indexing, caching_policy>::close(std::string_view path, metadata<indexing>& metadata) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     auto lock = std::unique_lock(*metadata.mutex);
 
@@ -82,7 +82,7 @@ inline void cache_store<indexing, caching_policy>::close(std::string_view path, 
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, metadata& metadata) {
+void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, metadata<indexing>& metadata) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     if (!caching_policy::keep_cache(context, metadata)) {
         auto lock = std::unique_lock(cache_mutex);
@@ -97,7 +97,7 @@ void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::remove(std::string_view path, metadata& metadata) {
+void cache_store<indexing, caching_policy>::remove(std::string_view path, metadata<indexing>& metadata) {
     log::information(log_locations::cache_store_operation) << __func__ << "( " << path << " )\n";
     metadata.open_count--;
 
@@ -141,7 +141,7 @@ mode_t cache_store<indexing, caching_policy>::get_type(std::string_view path) {
 }
 
 template<typename indexing, typename caching_policy>
-directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
+directory<indexing>& cache_store<indexing, caching_policy>::open_directory(std::string_view path) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     auto directory_shared_lock = std::shared_lock(directory_cache_mutex);
     auto iterator = directory_cache.find(path);
@@ -163,33 +163,33 @@ directory<typename indexing::directory_entry_type>& cache_store<indexing, cachin
 
     // If directory doesn't exist, an exception will be thrown from open
     auto key_generator = std::function(indexing::existing_directory_key);
-    metadata& directory_metadata = open(path, key_generator);
+    metadata<indexing>& directory_metadata = open(path, key_generator);
 
     auto directory_unique_lock = std::unique_lock(directory_cache_mutex, std::defer_lock);
     auto emplace_result = directory_cache.emplace(std::make_pair(
         std::string(path),
-        directory<directory_entry_type>(directory_metadata)
+        directory<indexing>(directory_metadata)
     ));
     return emplace_result.first->second;
 }
 
 template<typename indexing, typename caching_policy>
-directory<typename indexing::directory_entry_type>& cache_store<indexing, caching_policy>::create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
+directory<indexing>& cache_store<indexing, caching_policy>::create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode) {
     log::information(log_locations::cache_store_operation) << std::showbase << __func__ << "(path = " << path << ", owner = " << owner << ", group = " << group << ", mode = " << std::oct << mode << ")\n";
     // If directory exists, an exception will be thrown from create
-    metadata& directory_metadata = create(path, owner, group, mode);
+    metadata<indexing>& directory_metadata = create(path, owner, group, mode);
     auto lock = std::unique_lock(directory_cache_mutex);
     auto emplace_result = directory_cache.emplace(std::make_pair(
         std::string(path),
-        directory<directory_entry_type>(directory_metadata)
+        directory<indexing>(directory_metadata)
     ));
     return emplace_result.first->second;
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::close_directory(std::string_view path, directory <directory_entry_type>& directory) {
+void cache_store<indexing, caching_policy>::close_directory(std::string_view path, directory<indexing>& directory) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
-    metadata& directory_metadata = directory.directory_metadata;
+    metadata<indexing>& directory_metadata = directory.directory_metadata;
     auto metadata_lock = std::unique_lock(*directory_metadata.mutex);
 
     directory_metadata.open_count--;
@@ -210,9 +210,9 @@ void cache_store<indexing, caching_policy>::close_directory(std::string_view pat
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::remove_directory(std::string_view path, directory <directory_entry_type>& directory) {
+void cache_store<indexing, caching_policy>::remove_directory(std::string_view path, directory<indexing>& directory) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
-    metadata& directory_metadata = directory.directory_metadata;
+    metadata<indexing>& directory_metadata = directory.directory_metadata;
     directory_metadata.open_count--;
 
     if (directory_metadata.open_count > 0) {
@@ -246,7 +246,7 @@ void cache_store<indexing, caching_policy>::move_directory(std::string_view old_
 
     auto directory_emplace_result = directory_cache.emplace(std::make_pair(
         std::string(new_path),
-        nmfs::structures::directory<directory_entry_type>(std::move(directory), old_path, new_path)
+        nmfs::structures::directory<indexing>(std::move(directory), old_path, new_path)
     ));
     auto& new_directory = directory_emplace_result.first->second;
 
@@ -267,14 +267,14 @@ void cache_store<indexing, caching_policy>::flush_all() const {
 
 template<typename indexing, typename caching_policy>
 template<typename slice_type>
-metadata& cache_store<indexing, caching_policy>::open(std::string_view path, std::function<slice_type(super_object & , std::string_view)> key_generator) {
+metadata<indexing>& cache_store<indexing, caching_policy>::open(std::string_view path, std::function<slice_type(super_object<indexing>& , std::string_view)> key_generator) {
     auto cache_shared_lock = std::shared_lock(cache_mutex);
     auto iterator = cache.find(path);
 
     cache_shared_lock.unlock();
 
     if (iterator != cache.end()) {
-        metadata& metadata = iterator->second;
+        metadata<indexing>& metadata = iterator->second;
         auto metadata_lock = std::unique_lock(*metadata.mutex);
 
         if (!caching_policy::is_valid(context, metadata)) {

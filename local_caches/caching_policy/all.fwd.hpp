@@ -3,6 +3,7 @@
 
 namespace nmfs::caching_policies {
 
+template<typename indexing>
 class evict_on_last_close;
 
 }

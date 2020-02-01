@@ -20,6 +20,7 @@
 #include "../kv_backends/exceptions/key_does_not_exist.hpp"
 #include "../exceptions/file_does_not_exist.hpp"
 #include "../exceptions/file_already_exists.hpp"
+#include "../structures/indexing_types/all.hpp"
 
 namespace nmfs {
 using namespace nmfs::structures;
@@ -30,36 +31,36 @@ public:
     using directory_entry_type = typename indexing::directory_entry_type;
     using metadata_type = typename indexing::metadata_type;
 
-    explicit cache_store(super_object& context);
+    explicit cache_store(super_object<indexing>& context);
     ~cache_store();
 
-    inline metadata& open(std::string_view path);
-    inline metadata& create(std::string_view path, uid_t owner, gid_t group, mode_t mode);
-    inline void close(std::string_view path, metadata& metadata);
-    inline void drop_if_policy_requires(std::string_view path, metadata& metadata);
-    inline void remove(std::string_view path, metadata& metadata);
+    inline metadata<indexing>& open(std::string_view path);
+    inline metadata<indexing>& create(std::string_view path, uid_t owner, gid_t group, mode_t mode);
+    inline void close(std::string_view path, metadata<indexing>& metadata);
+    inline void drop_if_policy_requires(std::string_view path, metadata<indexing>& metadata);
+    inline void remove(std::string_view path, metadata<indexing>& metadata);
     inline void move(std::string_view old_path, std::string_view new_path);
     inline mode_t get_type(std::string_view path);
 
-    inline directory<directory_entry_type>& open_directory(std::string_view path);
-    inline directory<directory_entry_type>& create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
-    inline void close_directory(std::string_view path, directory<directory_entry_type>& directory);
-    inline void remove_directory(std::string_view path, directory<directory_entry_type>& directory);
+    inline directory<indexing>& open_directory(std::string_view path);
+    inline directory<indexing>& create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
+    inline void close_directory(std::string_view path, directory<indexing>& directory);
+    inline void remove_directory(std::string_view path, directory<indexing>& directory);
     inline void move_directory(std::string_view old_path, std::string_view new_path);
 
     inline void flush_all() const;
 
 private:
-    super_object& context;
+    super_object<indexing>& context;
     std::map<std::string, metadata_type, std::less<>> cache;
     std::shared_mutex cache_mutex;
-    std::map<std::string, directory<directory_entry_type>, std::less<>> directory_cache;
+    std::map<std::string, directory<indexing>, std::less<>> directory_cache;
     std::shared_mutex directory_cache_mutex;
     std::thread background_worker;
     bool stop_background_worker = false;
 
     template<typename slice_type>
-    inline metadata& open(std::string_view path, std::function<slice_type(super_object&, std::string_view)> key_generator);
+    inline metadata<indexing>& open(std::string_view path, std::function<slice_type(super_object<indexing>&, std::string_view)> key_generator);
     inline void background_worker_main();
     inline void flush_directories() const;
     inline void flush_regular_files() const;

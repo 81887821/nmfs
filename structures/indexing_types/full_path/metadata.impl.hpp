@@ -1,18 +1,23 @@
+#ifndef NMFS_STRUCTURES_INDEXING_TYPES_FULL_PATH_METADATA_IMPL_HPP
+#define NMFS_STRUCTURES_INDEXING_TYPES_FULL_PATH_METADATA_IMPL_HPP
+
 #include "metadata.hpp"
 #include "../../../memory_slices/borrower_slice.hpp"
 #include "../../../kv_backends/exceptions/key_does_not_exist.hpp"
 
-using namespace nmfs::structures::indexing_types::full_path;
+#include "../../metadata.impl.hpp"
 
-metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key, uid_t owner, gid_t group, mode_t mode)
-    : nmfs::structures::metadata(super, std::move(key), owner, group, mode) {
+namespace nmfs::structures::indexing_types::full_path {
+
+metadata::metadata(nmfs::structures::super_object<indexing>& super, nmfs::owner_slice key, uid_t owner, gid_t group, mode_t mode)
+    : nmfs::structures::metadata<indexing>(super, std::move(key), owner, group, mode) {
 }
 
-metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key, const on_disk::metadata* on_disk_data)
-    : nmfs::structures::metadata(super, std::move(key), on_disk_data) {
+metadata::metadata(nmfs::structures::super_object<indexing>& super, nmfs::owner_slice key, const on_disk::metadata* on_disk_data)
+    : nmfs::structures::metadata<indexing>(super, std::move(key), on_disk_data) {
 }
 metadata::metadata(metadata&& other, nmfs::owner_slice key)
-    : nmfs::structures::metadata(std::move(other), std::move(key)) {
+    : nmfs::structures::metadata<indexing>(std::move(other), std::move(key)) {
 }
 
 
@@ -56,3 +61,7 @@ void metadata::move_data(const slice& new_data_key_base) {
 nmfs::structures::utils::data_object_key metadata::get_data_object_key(uint32_t index) const {
     return nmfs::structures::utils::data_object_key(key, index);
 }
+
+}
+
+#endif //NMFS_STRUCTURES_INDEXING_TYPES_FULL_PATH_METADATA_IMPL_HPP

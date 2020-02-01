@@ -14,9 +14,10 @@
 
 namespace nmfs::structures {
 
+template<typename indexing>
 class metadata {
 public:
-    super_object& context;
+    super_object<indexing>& context;
     owner_slice key;
     size_t open_count;
     nlink_t link_count;
@@ -30,15 +31,15 @@ public:
     mutable bool dirty = false;
     mutable std::shared_ptr<std::shared_mutex> mutex;
 
-    metadata(super_object& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
-    metadata(super_object& super, owner_slice key, const on_disk::metadata* on_disk_structure);
-    metadata(metadata&& other, owner_slice key);
-    metadata(metadata&& other, owner_slice key, const slice& new_data_key_base);
+    inline metadata(super_object<indexing>& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
+    inline metadata(super_object<indexing>& super, owner_slice key, const on_disk::metadata* on_disk_structure);
+    inline metadata(metadata&& other, owner_slice key);
+    inline metadata(metadata&& other, owner_slice key, const slice& new_data_key_base);
     virtual inline ~metadata() = default;
 
-    ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
-    ssize_t read(byte* buffer, size_t size_to_read, off_t offset) const;
-    void truncate(off_t new_size);
+    inline ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);
+    inline ssize_t read(byte* buffer, size_t size_to_read, off_t offset) const;
+    inline void truncate(off_t new_size);
     /**
      * Write local metadata contents to backend
      */
@@ -48,12 +49,12 @@ public:
      */
     virtual void reload() = 0;
     virtual void move_data(const slice& new_data_key_base) = 0;
-    void remove();
+    inline void remove();
 
 protected:
-    void remove_data_objects(uint32_t index_from, uint32_t index_to);
+    inline void remove_data_objects(uint32_t index_from, uint32_t index_to);
     virtual utils::data_object_key get_data_object_key(uint32_t index) const = 0;
-    virtual void to_on_disk_metadata(on_disk::metadata& on_disk_metadata) const;
+    virtual inline void to_on_disk_metadata(on_disk::metadata& on_disk_metadata) const;
 };
 
 }

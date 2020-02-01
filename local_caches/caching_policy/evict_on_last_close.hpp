@@ -4,30 +4,17 @@
 #include "../../structures/super_object.hpp"
 #include "../../structures/metadata.hpp"
 #include "../../structures/directory.hpp"
-#include "../cache_store.hpp"
 
 namespace nmfs::caching_policies {
 using namespace nmfs::structures;
 
+template<typename indexing>
 class evict_on_last_close {
 public:
-    static bool is_valid(super_object& context, metadata& cache) {
-        return true;
-    }
-
-    static bool keep_cache(super_object& context, metadata& cache) {
-        return cache.open_count > 0;
-    }
-
-    template<typename indexing>
-    static bool is_valid(super_object& context, directory<indexing>& cache) {
-        return true;
-    }
-
-    template<typename indexing>
-    static bool keep_cache(super_object& context, directory<indexing>& cache) {
-        return cache.directory_metadata.open_count > 0;
-    }
+    static bool is_valid(super_object<indexing>& context, metadata<indexing>& cache);
+    static bool keep_cache(super_object<indexing>& context, metadata<indexing>& cache);
+    static bool is_valid(super_object<indexing>& context, directory<indexing>& cache);
+    static bool keep_cache(super_object<indexing>& context, directory<indexing>& cache);
 };
 
 }

@@ -8,24 +8,26 @@
 #include <string>
 #include <set>
 #include "../fuse.hpp"
-#include "metadata.hpp"
 #include "../exceptions/is_not_directory.hpp"
 #include "../exceptions/file_does_not_exist.hpp"
 #include "../exceptions/type_not_supported.hpp"
 #include "../logger/log.hpp"
+#include "metadata.hpp"
 
 namespace nmfs::structures {
 
-template<typename directory_entry_type>
+template<typename indexing>
 class directory {
 public:
-    metadata& directory_metadata;
+    using directory_entry_type = typename indexing::directory_entry_type;
 
-    explicit inline directory(metadata& metadata);
+    metadata<indexing>& directory_metadata;
+
+    explicit inline directory(metadata<indexing>& metadata);
     inline directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path);
     inline ~directory();
 
-    inline void add_file(std::string_view file_name, const metadata& metadata);
+    inline void add_file(std::string_view file_name, const metadata<indexing>& metadata);
     inline void remove_file(std::string_view file_name);
     inline void flush() const;
     inline void fill_buffer(const fuse_directory_filler& filler);

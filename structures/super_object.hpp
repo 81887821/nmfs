@@ -9,18 +9,18 @@
 namespace nmfs::structures {
 using namespace nmfs::kv_backends;
 
+template<typename indexing>
 class super_object {
 public:
-    using indexing_type = configuration::indexing_type;
-    using caching_policy = configuration::caching_policy;
+    using caching_policy = configuration::caching_policy<indexing>;
 
     const size_t maximum_object_size = 64 * 1024;
 
     std::unique_ptr<kv_backend> backend;
-    std::unique_ptr<cache_store<configuration::indexing_type, configuration::caching_policy>> cache;
+    std::unique_ptr<cache_store<indexing, caching_policy>> cache;
 
-    explicit super_object(std::unique_ptr<kv_backend> backend);
-    ~super_object();
+    inline explicit super_object(std::unique_ptr<kv_backend> backend);
+    inline ~super_object();
 };
 
 }

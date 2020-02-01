@@ -1,12 +1,15 @@
 #ifndef NMFS_STRUCTURES_DIRECTORY_IMPL_HPP
 #define NMFS_STRUCTURES_DIRECTORY_IMPL_HPP
 
+#include "directory.hpp"
 #include "../utils.hpp"
+
+#include "metadata.impl.hpp"
 
 namespace nmfs::structures {
 
-template<typename directory_entry_type>
-inline directory<directory_entry_type>::directory(nmfs::structures::metadata& metadata)
+template<typename indexing>
+inline directory<indexing>::directory(nmfs::structures::metadata<indexing>& metadata)
     : directory_metadata(metadata),
       size(sizeof(on_disk_size_type)),
       dirty(metadata.size == 0),
@@ -21,8 +24,8 @@ inline directory<directory_entry_type>::directory(nmfs::structures::metadata& me
     }
 }
 
-template<typename directory_entry_type>
-directory<directory_entry_type>::directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path)
+template<typename indexing>
+directory<indexing>::directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path)
     : directory_metadata(other.directory_metadata),
     /* Moving files and size is deferred until moving children is finished */
       mutex(std::make_shared<std::shared_mutex>()) {
@@ -49,13 +52,13 @@ directory<directory_entry_type>::directory(directory&& other, std::string_view o
     other.dirty = false;
 }
 
-template<typename directory_entry_type>
-inline directory<directory_entry_type>::~directory() {
+template<typename indexing>
+inline directory<indexing>::~directory() {
     flush();
 }
 
-template<typename directory_entry_type>
-inline void directory<directory_entry_type>::add_file(std::string_view file_name, const metadata& metadata) {
+template<typename indexing>
+inline void directory<indexing>::add_file(std::string_view file_name, const metadata<indexing>& metadata) {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
 
     auto lock = std::unique_lock(*mutex);
@@ -70,8 +73,8 @@ inline void directory<directory_entry_type>::add_file(std::string_view file_name
     }
 }
 
-template<typename directory_entry_type>
-inline void directory<directory_entry_type>::remove_file(std::string_view file_name) {
+template<typename indexing>
+inline void directory<indexing>::remove_file(std::string_view file_name) {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
 
     auto lock = std::unique_lock(*mutex);
@@ -86,8 +89,8 @@ inline void directory<directory_entry_type>::remove_file(std::string_view file_n
     }
 }
 
-template<typename directory_entry_type>
-inline void directory<directory_entry_type>::flush() const {
+template<typename indexing>
+inline void directory<indexing>::flush() const {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
     auto lock = std::shared_lock(*mutex);
 
@@ -103,8 +106,8 @@ inline void directory<directory_entry_type>::flush() const {
     }
 }
 
-template<typename directory_entry_type>
-inline std::unique_ptr<byte[]> directory<directory_entry_type>::serialize() const {
+template<typename indexing>
+inline std::unique_ptr<byte[]> directory<indexing>::serialize() const {
     on_disk_size_type number_of_files = files.size();
     std::unique_ptr<byte[]> buffer = std::make_unique<byte[]>(size);
     size_t index = 0;
@@ -119,8 +122,8 @@ inline std::unique_ptr<byte[]> directory<directory_entry_type>::serialize() cons
     return buffer;
 }
 
-template<typename directory_entry_type>
-inline void directory<directory_entry_type>::parse(std::unique_ptr<byte[]> buffer) {
+template<typename indexing>
+inline void directory<indexing>::parse(std::unique_ptr<byte[]> buffer) {
     const byte* current = buffer.get();
 
     on_disk_size_type number_of_files = *reinterpret_cast<const on_disk_size_type*>(current);
@@ -134,8 +137,8 @@ inline void directory<directory_entry_type>::parse(std::unique_ptr<byte[]> buffe
     size = current - buffer.get();
 }
 
-template<typename directory_entry_type>
-void directory<directory_entry_type>::fill_buffer(const fuse_directory_filler& filler) {
+template<typename indexing>
+void directory<indexing>::fill_buffer(const fuse_directory_filler& filler) {
     auto lock = std::shared_lock(*mutex);
 
     for (const auto& content: files) {
@@ -143,19 +146,19 @@ void directory<directory_entry_type>::fill_buffer(const fuse_directory_filler& f
     }
 }
 
-template<typename directory_entry_type>
-constexpr size_t directory<directory_entry_type>::number_of_files() const {
+template<typename indexing>
+constexpr size_t directory<indexing>::number_of_files() const {
     auto lock = std::shared_lock(*mutex);
     return files.size();
 }
 
-template<typename directory_entry_type>
-constexpr bool directory<directory_entry_type>::empty() const {
+template<typename indexing>
+constexpr bool directory<indexing>::empty() const {
     return files.empty();
 }
 
-template<typename directory_entry_type>
-void directory<directory_entry_type>::remove() {
+template<typename indexing>
+void directory<indexing>::remove() {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
     auto lock = std::unique_lock(*mutex);
 
@@ -163,8 +166,8 @@ void directory<directory_entry_type>::remove() {
     dirty = false;
 }
 
-template<typename directory_entry_type>
-const directory_entry_type& directory<directory_entry_type>::get_entry(std::string_view file_name) const {
+template<typename indexing>
+const typename directory<indexing>::directory_entry_type& directory<indexing>::get_entry(std::string_view file_name) const {
     auto lock = std::shared_lock(*mutex);
     auto iterator = std::find_if(files.begin(), files.end(), directory_entry_type::find_by_name(file_name));
 
@@ -175,8 +178,8 @@ const directory_entry_type& directory<directory_entry_type>::get_entry(std::stri
     }
 }
 
-template<typename directory_entry_type>
-void directory<directory_entry_type>::move_entry(std::string_view old_path, std::string_view new_path, directory& target_directory) {
+template<typename indexing>
+void directory<indexing>::move_entry(std::string_view old_path, std::string_view new_path, directory& target_directory) {
     std::string_view old_file_name = get_filename(old_path);
     std::string_view new_file_name = get_filename(new_path);
     auto iterator = std::find_if(files.begin(), files.end(), directory_entry_type::find_by_name(old_file_name));

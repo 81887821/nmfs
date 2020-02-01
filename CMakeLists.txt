@@ -24,25 +24,32 @@ add_executable(nmfs
         utils.hpp
         primitive_types.hpp
         structures/super_object.hpp
-        structures/metadata.cpp
+        structures/super_object.impl.hpp
         structures/metadata.hpp
+        structures/metadata.impl.hpp
         structures/directory.hpp
         structures/directory.impl.hpp
+        structures/directory_entry.hpp
+        structures/directory_entry.impl.hpp
         structures/on_disk/super_object.hpp
         structures/on_disk/metadata.hpp
         structures/utils/data_object_key.hpp
         fuse.hpp
         mapper.hpp
-        local_caches/caching_policy/all.hpp
+        local_caches/caching_policy/all.impl.hpp
         local_caches/caching_policy/all.fwd.hpp
         local_caches/caching_policy/evict_on_last_close.hpp
+        local_caches/caching_policy/evict_on_last_close.impl.hpp
         local_caches/cache_store.fwd.hpp
         local_caches/cache_store.hpp
         local_caches/cache_store.impl.hpp
-        structures/indexing_types/all.hpp
         structures/indexing_types/all.fwd.hpp
+        structures/indexing_types/all.hpp
+        structures/indexing_types/all.impl.hpp
         structures/indexing_types/full_path/indexing.hpp
+        structures/indexing_types/full_path/indexing.impl.hpp
         structures/indexing_types/custom/indexing.hpp
+        structures/indexing_types/custom/indexing.impl.hpp
         configuration.hpp
         kv_backends/exceptions/kv_backend_exception.hpp
         kv_backends/exceptions/generic_kv_api_failure.hpp
@@ -58,14 +65,15 @@ add_executable(nmfs
         logger/log_levels.hpp
         logger/log_stream.hpp
         logger/write_bytes.hpp
-        structures/super_object.cpp
         structures/indexing_types/custom/metadata.hpp
+        structures/indexing_types/custom/metadata.impl.hpp
         structures/indexing_types/custom/on_disk/metadata.hpp
         structures/indexing_types/custom/directory_entry.hpp
-        structures/indexing_types/custom/metadata.cpp
+        structures/indexing_types/custom/directory_entry.impl.hpp
         structures/indexing_types/full_path/metadata.hpp
-        structures/indexing_types/full_path/metadata.cpp
-        structures/directory_entry.hpp
+        structures/indexing_types/full_path/metadata.impl.hpp
+        structures/indexing_types/full_path/directory_entry.hpp
+        structures/indexing_types/full_path/directory_entry.impl.hpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

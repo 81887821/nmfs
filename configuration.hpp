@@ -8,8 +8,9 @@
 
 namespace nmfs::configuration {
 
-using indexing_type = nmfs::structures::indexing_types::custom::indexing;
-using caching_policy = nmfs::caching_policies::evict_on_last_close;
+using indexing = nmfs::structures::indexing_types::custom::indexing;
+template<typename indexing>
+using caching_policy = nmfs::caching_policies::evict_on_last_close<indexing>;
 
 }
 

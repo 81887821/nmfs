@@ -1,25 +1,30 @@
+#ifndef NMFS_STRUCTURES_INDEXING_TYPES_CUSTOM_METADATA_IMPL_HPP
+#define NMFS_STRUCTURES_INDEXING_TYPES_CUSTOM_METADATA_IMPL_HPP
+
 #include <algorithm>
 #include "../../../memory_slices/borrower_slice.hpp"
-#include "metadata.hpp"
 #include "../../../utils.hpp"
 #include "../../../kv_backends/exceptions/key_does_not_exist.hpp"
+#include "metadata.hpp"
 
-using namespace nmfs::structures::indexing_types::custom;
+#include "../../metadata.impl.hpp"
 
-metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key, uid_t owner, gid_t group, mode_t mode)
-    : nmfs::structures::metadata(super, std::move(key), owner, group, mode),
+namespace nmfs::structures::indexing_types::custom {
+
+metadata::metadata(nmfs::structures::super_object<indexing>& super, nmfs::owner_slice key, uid_t owner, gid_t group, mode_t mode)
+    : nmfs::structures::metadata<indexing>(super, std::move(key), owner, group, mode),
       data_key_base(generate_uuid()) {
 }
 
-metadata::metadata(nmfs::structures::super_object& super, nmfs::owner_slice key, const nmfs::structures::on_disk::metadata* on_disk_data)
-    : nmfs::structures::metadata(super, std::move(key), on_disk_data),
+metadata::metadata(nmfs::structures::super_object<indexing>& super, nmfs::owner_slice key, const nmfs::structures::on_disk::metadata* on_disk_data)
+    : nmfs::structures::metadata<indexing>(super, std::move(key), on_disk_data),
       data_key_base(sizeof(uuid_t)) {
     auto custom_on_disk_data = static_cast<const nmfs::structures::indexing_types::custom::on_disk::metadata*>(on_disk_data);
     std::copy(custom_on_disk_data->uuid, custom_on_disk_data->uuid + sizeof(uuid_t), data_key_base.data());
 }
 
 metadata::metadata(metadata&& other, nmfs::owner_slice key)
-    : nmfs::structures::metadata(std::move(other), std::move(key), other.data_key_base),
+    : nmfs::structures::metadata<indexing>(std::move(other), std::move(key), other.data_key_base),
       data_key_base(std::move(other.data_key_base)) {
 }
 
@@ -70,6 +75,10 @@ nmfs::structures::utils::data_object_key metadata::get_data_object_key(uint32_t 
 }
 
 void metadata::to_on_disk_metadata(nmfs::structures::indexing_types::custom::on_disk::metadata& on_disk_metadata) const {
-    nmfs::structures::metadata::to_on_disk_metadata(on_disk_metadata);
+    nmfs::structures::metadata<indexing>::to_on_disk_metadata(on_disk_metadata);
     std::copy(data_key_base.data(), data_key_base.data() + sizeof(uuid_t), on_disk_metadata.uuid);
 }
+
+}
+
+#endif //NMFS_STRUCTURES_INDEXING_TYPES_CUSTOM_METADATA_IMPL_HPP
