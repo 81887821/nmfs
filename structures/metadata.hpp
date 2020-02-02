@@ -28,6 +28,7 @@ public:
     struct timespec atime;
     struct timespec mtime;
     struct timespec ctime;
+    bool valid = true;
     mutable bool dirty = false;
     mutable std::shared_ptr<std::shared_mutex> mutex;
 
@@ -36,7 +37,7 @@ public:
     inline metadata(metadata&& other, owner_slice key);
     inline metadata(metadata&& other, owner_slice key, const slice& new_data_key_base);
     metadata(const metadata&) = delete;
-    metadata(metadata&&) noexcept = default;
+    metadata(metadata&& other) noexcept;
     virtual inline ~metadata() = default;
 
     inline ssize_t write(const byte* buffer, size_t size_to_write, off_t offset);

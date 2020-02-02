@@ -26,7 +26,7 @@ metadata::~metadata() {
 }
 
 void metadata::flush() const {
-    if (dirty) {
+    if (valid && dirty) {
         on_disk::metadata on_disk_structure {};
         to_on_disk_metadata(on_disk_structure);
 

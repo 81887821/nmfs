@@ -91,6 +91,25 @@ metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key, const slic
 }
 
 template<typename indexing>
+metadata<indexing>::metadata(metadata&& other) noexcept
+    : context(other.context),
+      key(std::move(other.key)),
+      open_count(other.open_count),
+      link_count(other.link_count),
+      owner(other.owner),
+      group(other.group),
+      mode(other.mode),
+      size(other.size),
+      atime(other.atime),
+      mtime(other.mtime),
+      ctime(other.ctime),
+      valid(true),
+      dirty(other.dirty),
+      mutex(std::move(other.mutex)) {
+    other.valid = false;
+}
+
+template<typename indexing>
 ssize_t metadata<indexing>::write(const byte* buffer, size_t size_to_write, off_t offset) {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(size = " << size_to_write << ", offset = " << offset << ")\n";
     log::information(log_locations::file_data_content) << std::showbase << std::hex << "(" << this << ") " << __func__ << " = " << write_bytes(buffer, size_to_write) << '\n';
@@ -202,6 +221,7 @@ void metadata<indexing>::remove() {
     remove_data_objects(0, size / context.maximum_object_size);
     context.backend->remove(key);
     dirty = false;
+    valid = false;
 }
 
 template<typename indexing>
