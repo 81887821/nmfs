@@ -49,7 +49,7 @@ inline log_stream log::error(log_locations log_location) {
 
 inline log_stream log::write_log(log_levels level, log_locations location) {
     if (logging_needed(level, location)) {
-        std::ostream& logging_backend = std::cout;
+        std::ostream& logging_backend = std::cerr;
         return log_stream(logging_backend, level, location);
     } else {
         return log_stream();

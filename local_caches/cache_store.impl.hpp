@@ -27,7 +27,7 @@ inline open_context<indexing, lock_type> cache_store<indexing, caching_policy>::
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     auto key_generator = std::function(indexing::existing_regular_file_key);
     auto iterator = open(path, key_generator);
-    return open_context<indexing, lock_type>(iterator->first, iterator->second);
+    return open_context<indexing, lock_type>(iterator->first, iterator->second, true);
 }
 
 template<typename indexing, typename caching_policy>
@@ -62,7 +62,7 @@ open_context<indexing, lock_type> cache_store<indexing, caching_policy>::create(
 
             auto lock = std::scoped_lock(directory_cache_mutex, cache_mutex);
             auto iterator = do_create(std::move(key));
-            return open_context<indexing, lock_type>(iterator->first, iterator->second);
+            return open_context<indexing, lock_type>(iterator->first, iterator->second, true);
         } else if (S_ISREG(mode)) {
             auto key = indexing::new_regular_file_key(context, path, temporary_metadata);
             temporary_metadata.key = owner_slice(key);
@@ -70,19 +70,11 @@ open_context<indexing, lock_type> cache_store<indexing, caching_policy>::create(
             auto lock = std::unique_lock(cache_mutex);
             auto iterator = do_create(std::move(key));
             lock.unlock();
-            return open_context<indexing, lock_type>(iterator->first, iterator->second);
+            return open_context<indexing, lock_type>(iterator->first, iterator->second, true);
         } else {
             throw nmfs::exceptions::type_not_supported(mode);
         }
     }
-}
-
-template<typename indexing, typename caching_policy>
-template<template<typename> typename lock_type>
-inline void cache_store<indexing, caching_policy>::close(open_context<indexing, lock_type> open_context) {
-    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << open_context.path << ")\n";
-    open_context.~open_context(); //TODO ??
-    drop_if_policy_requires(open_context.path, open_context.metadata);
 }
 
 template<typename indexing, typename caching_policy>
@@ -129,7 +121,7 @@ void cache_store<indexing, caching_policy>::move(std::string_view old_path, std:
         log::warning(log_locations::cache_store_operation) << __func__ << ": Renaming opened file. open_count = " << metadata.open_count << '\n';
     }
 
-    auto new_metadata_key = indexing::new_directory_key(context, new_path, metadata);
+    auto new_metadata_key = indexing::new_regular_file_key(context, new_path, metadata);
     auto new_metadata = metadata_type(std::move(metadata), owner_slice(std::move(new_metadata_key)));
 
     cache_lock.lock();
@@ -140,10 +132,7 @@ void cache_store<indexing, caching_policy>::move(std::string_view old_path, std:
     cache_lock.unlock();
     auto& emplaced_new_metadata = emplace_result.first->second;
 
-    if (metadata.key != emplaced_new_metadata.key) {
-        metadata.remove();
-    }
-
+    cache_lock.lock();
     cache.erase(metadata_iterator);
 }
 
@@ -166,7 +155,7 @@ directory_open_context<indexing, lock_type> cache_store<indexing, caching_policy
 
         if (caching_policy::is_valid(context, directory)) {
             directory.directory_metadata.open_count++;
-            return directory_open_context<indexing, lock_type>(path, directory);
+            return directory_open_context<indexing, lock_type>(path, directory, true);
         } else {
             // Drop directory cache and reopen
             auto directory_unique_lock = std::unique_lock(directory_cache_mutex);
@@ -200,23 +189,18 @@ directory_open_context<indexing, lock_type> cache_store<indexing, caching_policy
         directory_metadata
     );
     lock.unlock();
-    return directory_open_context<indexing, lock_type>(emplace_result.first->first, emplace_result.first->second);
+    return directory_open_context<indexing, lock_type>(emplace_result.first->first, emplace_result.first->second, true);
 }
 
 template<typename indexing, typename caching_policy>
-template<template<typename> typename lock_type>
-void cache_store<indexing, caching_policy>::close_directory(directory_open_context<indexing, lock_type> directory_open_context) {
-    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << directory_open_context.path << ")\n";
-    directory_open_context.~directory_open_context(); // TODO: ??
-
-    if (!caching_policy::keep_cache(context, directory_open_context.directory)) {
+void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, directory<indexing>& directory) {
+    log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
+    if (!caching_policy::keep_cache(context, directory)) {
         auto lock = std::unique_lock(directory_cache_mutex);
-        auto iterator = directory_cache.find(directory_open_context.path);
+        auto iterator = directory_cache.find(path);
         if (iterator != directory_cache.end()) {
-            assert(&(iterator->second) == &directory_open_context.directory); // assert if path and directory is different
+            assert(&(iterator->second) == &directory); // assert if path and directory is different
             directory_cache.erase(iterator);
-            lock.unlock();
-            drop_if_policy_requires(directory_open_context.path, directory_open_context.metadata);
         } else {
             // TODO: Error handling - there is no cache with given path
         }
@@ -259,23 +243,19 @@ void cache_store<indexing, caching_policy>::move_directory(std::string_view old_
     auto new_metadata_key = indexing::new_directory_key(context, new_path, directory_metadata);
     auto new_metadata = metadata_type(std::move(directory_metadata), owner_slice(std::move(new_metadata_key)));
     auto cache_lock = std::unique_lock(cache_mutex);
-    cache.emplace(
+    auto metadata_emplace_result = cache.emplace(
         new_path,
         std::move(new_metadata)
     );
     cache_lock.unlock();
+    auto& emplaced_metadata = metadata_emplace_result.first->second;
 
-    auto new_directory = nmfs::structures::directory<indexing>(std::move(directory), old_path, new_path);
-    auto directory_cache_lock = std::unique_lock(directory_cache_mutex);
-    auto directory_emplace_result = directory_cache.emplace(
+    auto new_directory = nmfs::structures::directory<indexing>(std::move(directory), emplaced_metadata, old_path, new_path);
+    auto lock = std::scoped_lock(directory_cache_mutex, cache_mutex);
+    directory_cache.emplace(
         new_path,
         std::move(new_directory)
     );
-    auto& emplaced_new_directory = directory_emplace_result.first->second;
-
-    if (emplaced_new_directory.directory_metadata.key != directory_metadata.key) {
-        directory_metadata.remove();
-    }
 
     directory_cache.erase(directory_iterator);
     cache.erase(metadata_iterator);

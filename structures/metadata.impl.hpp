@@ -52,7 +52,7 @@ template<typename indexing>
 metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key)
     : context(other.context),
       key(0), /* Key is needed for moving data, so key will moved later */
-      open_count(1),
+      open_count(0),
       link_count(other.link_count),
       owner(other.owner),
       group(other.group),
@@ -61,19 +61,23 @@ metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key)
       atime(other.atime),
       mtime(other.mtime),
       ctime(other.ctime),
+      valid(other.valid),
       dirty(true),
       mutex(std::make_shared<std::shared_mutex>()) {
     other.dirty = false;
     other.move_data(key);
-    other.size = 0;
-    key = std::move(key);
+    if (key != other.key) {
+        other.remove();
+    }
+    other.valid = false;
+    this->key = std::move(key);
 }
 
 template<typename indexing>
 metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key, const slice& new_data_key_base)
     : context(other.context),
       key(0), /* Key is needed for moving data, so key will moved later */
-      open_count(1),
+      open_count(0),
       link_count(other.link_count),
       owner(other.owner),
       group(other.group),
@@ -82,12 +86,16 @@ metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key, const slic
       atime(other.atime),
       mtime(other.mtime),
       ctime(other.ctime),
+      valid(other.valid),
       dirty(true),
       mutex(std::make_shared<std::shared_mutex>()) {
     other.dirty = false;
     other.move_data(new_data_key_base);
-    other.size = 0;
-    key = std::move(key);
+    if (key != other.key) {
+        other.remove();
+    }
+    other.valid = false;
+    this->key = std::move(key);
 }
 
 template<typename indexing>
@@ -103,7 +111,7 @@ metadata<indexing>::metadata(metadata&& other) noexcept
       atime(other.atime),
       mtime(other.mtime),
       ctime(other.ctime),
-      valid(true),
+      valid(other.valid),
       dirty(other.dirty),
       mutex(std::move(other.mutex)) {
     other.valid = false;
@@ -201,11 +209,7 @@ void metadata<indexing>::remove_data_objects(uint32_t index_from, uint32_t index
     auto data_key = nmfs::structures::utils::data_object_key(key, index_from);
     for (uint32_t i = index_from; i <= index_to; i++) {
         data_key.update_index(i);
-        try {
-            context.backend->remove(data_key);
-        } catch (kv_backends::exceptions::generic_kv_api_failure&) {
-            continue;
-        }
+        context.backend->remove(data_key);
     }
 }
 
@@ -218,8 +222,10 @@ template<typename indexing>
 void metadata<indexing>::remove() {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "()\n";
 
-    remove_data_objects(0, size / context.maximum_object_size);
-    context.backend->remove(key);
+    if (valid) {
+        remove_data_objects(0, size / context.maximum_object_size);
+        context.backend->remove(key);
+    }
     dirty = false;
     valid = false;
 }

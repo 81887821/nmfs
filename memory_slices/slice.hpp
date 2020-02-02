@@ -38,6 +38,11 @@ protected:
 
     constexpr explicit slice(size_t size);
     constexpr slice(size_t capacity, size_t size);
+    slice(const slice&) = default;
+    constexpr slice(slice&& other) noexcept;
+
+    constexpr slice& operator=(const slice&) = default;
+    constexpr slice& operator=(slice&&) noexcept;
 };
 
 constexpr size_t slice::capacity() const {
@@ -91,6 +96,23 @@ bool slice::operator==(const slice& other) const {
 
 bool slice::operator!=(const slice& other) const {
     return !operator==(other);
+}
+
+constexpr slice::slice(slice&& other) noexcept
+    : memory_capacity(other.memory_capacity),
+      data_size(other.data_size) {
+    other.memory_capacity = 0;
+    other.data_size = 0;
+}
+
+constexpr slice& slice::operator=(slice&& other) noexcept {
+    memory_capacity = other.memory_capacity;
+    data_size = other.data_size;
+
+    other.memory_capacity = 0;
+    other.data_size = 0;
+
+    return *this;
 }
 
 }

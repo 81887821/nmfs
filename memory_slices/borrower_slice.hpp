@@ -24,6 +24,8 @@ public:
     constexpr borrower_slice(std::vector<type>& vector);
     template<typename type, size_t array_size>
     constexpr borrower_slice(std::array<type, array_size>& array);
+    borrower_slice(const borrower_slice&) = default;
+    borrower_slice(borrower_slice&&) noexcept = default;
 
     [[nodiscard]] inline byte* data() noexcept final;
     [[nodiscard]] inline const byte* data() const noexcept final;

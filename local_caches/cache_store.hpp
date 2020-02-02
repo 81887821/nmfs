@@ -40,8 +40,6 @@ public:
     inline open_context<indexing, lock_type> open(std::string_view path);
     template<template<typename> typename lock_type>
     inline open_context<indexing, lock_type> create(std::string_view path, uid_t owner, gid_t group, mode_t mode);
-    template<template<typename> typename lock_type>
-    inline void close(open_context<indexing, lock_type> open_context);
     inline void drop_if_policy_requires(std::string_view path, metadata<indexing>& metadata);
     template<template<typename> typename lock_type>
     inline void remove(open_context<indexing, lock_type> open_context);
@@ -52,8 +50,7 @@ public:
     inline directory_open_context<indexing, lock_type> open_directory(std::string_view path);
     template<template<typename> typename lock_type>
     inline directory_open_context<indexing, lock_type> create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
-    template<template<typename> typename lock_type>
-    inline void close_directory(directory_open_context<indexing, lock_type> directory_open_context);
+    inline void drop_if_policy_requires(std::string_view path, directory<indexing>& directory);
     template<template<typename> typename lock_type>
     inline void remove_directory(directory_open_context<indexing, lock_type> directory_open_context);
     inline void move_directory(std::string_view old_path, std::string_view new_path);

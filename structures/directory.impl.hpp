@@ -25,15 +25,21 @@ inline directory<indexing>::directory(nmfs::structures::metadata<indexing>& meta
 }
 
 template<typename indexing>
-directory<indexing>::directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path)
-    : directory_metadata(other.directory_metadata),
-    /* Moving files and size is deferred until moving children is finished */
+directory<indexing>::directory(directory&& other, metadata<indexing>& metadata, std::string_view old_directory_path, std::string_view new_directory_path)
+    : directory_metadata(metadata),
+      /* Moving files and size is deferred until moving children is finished */
+      dirty(false),
       mutex(std::make_shared<std::shared_mutex>()) {
-    other.dirty = false;
+    auto other_shared_lock = std::shared_lock(*other.mutex);
+    auto this_unique_lock = std::unique_lock(*mutex);
 
-    for (const auto& file: files) {
+    other.dirty = false;
+    other.directory_metadata.valid = false;
+
+    for (const auto& file: other.files) {
         std::string old_path = std::string(old_directory_path) + path_delimiter + file.file_name;
         std::string new_path = std::string(new_directory_path) + path_delimiter + file.file_name;
+        log::information(log_locations::directory_operation) << "Moving child entry (old_path = " << old_path << ", new_path = " << new_path << ")\n";
         mode_t type = directory_metadata.context.cache->get_type(old_path);
 
         if (S_ISDIR(type)) {
@@ -45,11 +51,13 @@ directory<indexing>::directory(directory&& other, std::string_view old_directory
         }
     }
 
+    other_shared_lock.unlock();
+    auto other_unique_lock = std::unique_lock(*other.mutex);
+
     files = std::move(other.files);
     size = other.size;
     other.size = 0;
-    dirty = true;
-    other.dirty = false;
+    dirty = other.dirty;
 }
 
 template<typename indexing>

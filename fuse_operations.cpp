@@ -595,7 +595,6 @@ int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file
 
     if (file_info) {
         auto open_context = nmfs::open_context<indexing, no_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh));
-        super_object.cache->close(std::move(open_context));
     }
 
     return 0;
@@ -610,7 +609,6 @@ int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* f
 
     if (file_info) {
         auto open_context = nmfs::directory_open_context<indexing, no_lock>(path, *reinterpret_cast<structures::directory<indexing>*>(file_info->fh));
-        super_object.cache->close_directory(std::move(open_context));
     }
 
     return 0;

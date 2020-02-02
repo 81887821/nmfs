@@ -24,7 +24,7 @@ public:
     metadata<indexing>& directory_metadata;
 
     explicit inline directory(metadata<indexing>& metadata);
-    inline directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path);
+    inline directory(directory&& other, metadata<indexing>& metadata, std::string_view old_directory_path, std::string_view new_directory_path);
     directory(const directory&) = delete;
     directory(directory&&) noexcept = default;
     inline ~directory();

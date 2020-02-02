@@ -58,13 +58,16 @@ void metadata::move_data(const nmfs::slice& new_data_key_base) {
                 owner_slice data = context.backend->get(old_data_key);
                 context.backend->remove(old_data_key);
                 context.backend->put(new_data_key, data);
+
+                old_data_key.increase_index();
+                new_data_key.increase_index();
             } catch (nmfs::kv_backends::exceptions::key_does_not_exist&) {
                 continue;
             }
         }
 
         data_key_base = owner_slice(new_data_key_base.size());
-        std::copy(new_data_key_base.data(), new_data_key_base.data() + new_data_key_base.size(), data_key_base.data());
+        std::copy(new_data_key_base.cbegin(), new_data_key_base.cend(), data_key_base.data());
     }
 }
 
