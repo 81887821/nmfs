@@ -77,6 +77,8 @@ add_executable(nmfs
         local_caches/utils/open_context.hpp
         local_caches/utils/directory_open_context.hpp
         local_caches/utils/no_lock.hpp
+        local_caches/caching_policy/hold_closed_cache_for.hpp
+        local_caches/caching_policy/hold_closed_cache_for.impl.hpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

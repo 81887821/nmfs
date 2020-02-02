@@ -10,7 +10,7 @@ namespace nmfs::configuration {
 
 using indexing = nmfs::structures::indexing_types::custom::indexing;
 template<typename indexing>
-using caching_policy = nmfs::caching_policies::evict_on_last_close<indexing>;
+using caching_policy = nmfs::caching_policies::hold_closed_cache_for<indexing, 30/*seconds*/>;
 
 }
 

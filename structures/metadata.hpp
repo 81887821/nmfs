@@ -2,6 +2,7 @@
 #define NMFS_STRUCTURES_METADATA_HPP
 
 #include <sys/stat.h>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <shared_mutex>
@@ -29,6 +30,7 @@ public:
     struct timespec mtime;
     struct timespec ctime;
     bool valid = true;
+    std::chrono::system_clock::time_point last_close;
     mutable bool dirty = false;
     mutable std::shared_ptr<std::shared_mutex> mutex;
 

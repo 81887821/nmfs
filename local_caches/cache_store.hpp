@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <string_view>
 #include <thread>
@@ -22,7 +23,6 @@
 #include "../kv_backends/exceptions/key_does_not_exist.hpp"
 #include "../exceptions/file_does_not_exist.hpp"
 #include "../exceptions/file_already_exists.hpp"
-//#include "../structures/indexing_types/all.hpp"
 
 namespace nmfs {
 using namespace nmfs::structures;
@@ -40,7 +40,7 @@ public:
     inline open_context<indexing, lock_type> open(std::string_view path);
     template<template<typename> typename lock_type>
     inline open_context<indexing, lock_type> create(std::string_view path, uid_t owner, gid_t group, mode_t mode);
-    inline void drop_if_policy_requires(std::string_view path, metadata<indexing>& metadata);
+    inline std::optional<typename std::map<std::string, metadata_type, std::less<>>::iterator> drop_if_policy_requires(std::string_view path, metadata<indexing>& metadata);
     template<template<typename> typename lock_type>
     inline void remove(open_context<indexing, lock_type> open_context);
     inline void move(std::string_view old_path, std::string_view new_path);
@@ -50,7 +50,7 @@ public:
     inline directory_open_context<indexing, lock_type> open_directory(std::string_view path);
     template<template<typename> typename lock_type>
     inline directory_open_context<indexing, lock_type> create_directory(std::string_view path, uid_t owner, gid_t group, mode_t mode);
-    inline void drop_if_policy_requires(std::string_view path, directory<indexing>& directory);
+    inline std::optional<typename std::map<std::string, directory<indexing>, std::less<>>::iterator> drop_if_policy_requires(std::string_view path, directory<indexing>& directory);
     template<template<typename> typename lock_type>
     inline void remove_directory(directory_open_context<indexing, lock_type> directory_open_context);
     inline void move_directory(std::string_view old_path, std::string_view new_path);
@@ -71,6 +71,8 @@ private:
     inline void background_worker_main();
     inline void flush_directories() const;
     inline void flush_regular_files() const;
+    inline void try_drop_directories();
+    inline void try_drop_regular_files();
 };
 
 }

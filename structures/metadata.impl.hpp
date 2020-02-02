@@ -23,6 +23,7 @@ metadata<indexing>::metadata(super_object<indexing>& super, owner_slice key, uid
       group(group),
       mode(mode),
       size(0),
+      last_close(std::chrono::system_clock::now()),
       dirty(true),
       mutex(std::make_shared<std::shared_mutex>()) {
     if (timespec_get(&atime, TIME_UTC) != TIME_UTC) {
@@ -45,6 +46,7 @@ metadata<indexing>::metadata(super_object<indexing>& super, owner_slice key, con
       atime(on_disk_structure->atime),
       mtime(on_disk_structure->mtime),
       ctime(on_disk_structure->ctime),
+      last_close(std::chrono::system_clock::now()),
       mutex(std::make_shared<std::shared_mutex>()) {
 }
 
@@ -62,6 +64,7 @@ metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key)
       mtime(other.mtime),
       ctime(other.ctime),
       valid(other.valid),
+      last_close(std::chrono::system_clock::now()),
       dirty(true),
       mutex(std::make_shared<std::shared_mutex>()) {
     other.dirty = false;
@@ -87,6 +90,7 @@ metadata<indexing>::metadata(metadata&& other, nmfs::owner_slice key, const slic
       mtime(other.mtime),
       ctime(other.ctime),
       valid(other.valid),
+      last_close(std::chrono::system_clock::now()),
       dirty(true),
       mutex(std::make_shared<std::shared_mutex>()) {
     other.dirty = false;
@@ -112,6 +116,7 @@ metadata<indexing>::metadata(metadata&& other) noexcept
       mtime(other.mtime),
       ctime(other.ctime),
       valid(other.valid),
+      last_close(other.last_close),
       dirty(other.dirty),
       mutex(std::move(other.mutex)) {
     other.valid = false;

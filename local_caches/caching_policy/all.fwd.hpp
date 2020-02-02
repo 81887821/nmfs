@@ -5,6 +5,8 @@ namespace nmfs::caching_policies {
 
 template<typename indexing>
 class evict_on_last_close;
+template<typename indexing, int seconds>
+class hold_closed_cache_for;
 
 }
 

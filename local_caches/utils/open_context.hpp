@@ -47,6 +47,7 @@ open_context<indexing, lock_type>::~open_context() {
     if (!released) {
         log::information(log_locations::cache_store_operation) << __func__ << ": path = " << path << '\n';
         metadata.open_count--;
+        metadata.last_close = std::chrono::system_clock::now();
         lock.unlock();
         metadata.context.cache->drop_if_policy_requires(path, metadata);
     }

@@ -78,18 +78,19 @@ open_context<indexing, lock_type> cache_store<indexing, caching_policy>::create(
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, metadata<indexing>& metadata) {
+std::optional<typename std::map<std::string, typename cache_store<indexing, caching_policy>::metadata_type, std::less<>>::iterator> cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, metadata<indexing>& metadata) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     if (!caching_policy::keep_cache(context, metadata)) {
         auto lock = std::unique_lock(cache_mutex);
         auto iterator = cache.find(path);
         if (iterator != cache.end()) {
             assert(&(iterator->second) == &metadata); // assert if path and metadata is different
-            cache.erase(iterator);
+            return cache.erase(iterator);
         } else {
             // TODO: Error handling - there is no cache with given path
         }
     }
+    return std::nullopt;
 }
 
 template<typename indexing, typename caching_policy>
@@ -193,18 +194,19 @@ directory_open_context<indexing, lock_type> cache_store<indexing, caching_policy
 }
 
 template<typename indexing, typename caching_policy>
-void cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, directory<indexing>& directory) {
+std::optional<typename std::map<std::string, directory<indexing>, std::less<>>::iterator> cache_store<indexing, caching_policy>::drop_if_policy_requires(std::string_view path, directory<indexing>& directory) {
     log::information(log_locations::cache_store_operation) << __func__ << "(path = " << path << ")\n";
     if (!caching_policy::keep_cache(context, directory)) {
         auto lock = std::unique_lock(directory_cache_mutex);
         auto iterator = directory_cache.find(path);
         if (iterator != directory_cache.end()) {
             assert(&(iterator->second) == &directory); // assert if path and directory is different
-            directory_cache.erase(iterator);
+            return directory_cache.erase(iterator);
         } else {
             // TODO: Error handling - there is no cache with given path
         }
     }
+    return std::nullopt;
 }
 
 template<typename indexing, typename caching_policy>
@@ -305,7 +307,7 @@ typename std::map<std::string, typename cache_store<indexing, caching_policy>::m
 template<typename indexing, typename caching_policy>
 void cache_store<indexing, caching_policy>::background_worker_main() {
     const int fail_threshold = 5;
-    const auto flush_interval = std::chrono::seconds(5);
+    const auto task_interval = std::chrono::seconds(5);
     int cache_lock_fail_count = 0;
     int directory_cache_lock_fail_count = 0;
     auto try_flush = [this, fail_threshold](int& fail_count, std::shared_mutex& mutex, std::function<void()> flush) {
@@ -324,12 +326,14 @@ void cache_store<indexing, caching_policy>::background_worker_main() {
     };
 
     while (!stop_background_worker) {
-        auto next_flush = std::chrono::system_clock::now() + flush_interval;
+        auto next_task = std::chrono::system_clock::now() + task_interval;
 
         try_flush(cache_lock_fail_count, cache_mutex, [this]() { flush_regular_files(); });
         try_flush(directory_cache_lock_fail_count, directory_cache_mutex, [this]() { flush_directories(); });
+        try_drop_directories();
+        try_drop_regular_files();
 
-        std::this_thread::sleep_until(next_flush);
+        std::this_thread::sleep_until(next_task);
     }
 }
 
@@ -354,6 +358,28 @@ void cache_store<indexing, caching_policy>::flush_regular_files() const {
 
         if (S_ISREG(metadata.mode) && metadata.dirty) {
             metadata.flush();
+        }
+    }
+}
+
+template<typename indexing, typename caching_policy>
+void cache_store<indexing, caching_policy>::try_drop_directories() {
+    for (auto iterator = directory_cache.begin(); iterator != directory_cache.end();) {
+        if (auto result = drop_if_policy_requires(iterator->first, iterator->second)) {
+            iterator = result.value();
+        } else {
+            iterator++;
+        }
+    }
+}
+
+template<typename indexing, typename caching_policy>
+void cache_store<indexing, caching_policy>::try_drop_regular_files() {
+    for (auto iterator = cache.begin(); iterator != cache.end();) {
+        if (auto result = drop_if_policy_requires(iterator->first, iterator->second)) {
+            iterator = result.value();
+        } else {
+            iterator++;
         }
     }
 }

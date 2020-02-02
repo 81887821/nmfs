@@ -34,6 +34,7 @@ directory_open_context<indexing, lock_type>::~directory_open_context() {
     if (!this->released) {
         log::information(log_locations::cache_store_operation) << __func__ << ": path = " << this->path << '\n';
         this->metadata.open_count--;
+        this->metadata.last_close = std::chrono::system_clock::now();
         this->lock.unlock();
         this->released = true;
         this->metadata.context.cache->drop_if_policy_requires(this->path, this->directory);
