@@ -392,10 +392,15 @@ int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, un
         std::string_view new_parent_path = get_parent_directory(new_path);
         auto old_parent_open_context = super_object.cache->open_directory<std::unique_lock>(old_parent_path);
         auto& old_parent_directory = old_parent_open_context.directory;
-        auto new_parent_open_context = super_object.cache->open_directory<std::unique_lock>(new_parent_path);
-        auto& new_parent_directory = new_parent_open_context.directory;
 
-        old_parent_directory.move_entry(old_path, new_path, new_parent_directory);
+        if (old_parent_path == new_parent_path) {
+            old_parent_directory.move_entry(old_path, new_path, old_parent_directory);
+        } else {
+            auto new_parent_open_context = super_object.cache->open_directory<std::unique_lock>(new_parent_path);
+            auto& new_parent_directory = new_parent_open_context.directory;
+
+            old_parent_directory.move_entry(old_path, new_path, new_parent_directory);
+        }
 
         return 0;
     } catch (nmfs::exceptions::nmfs_exception& e) {
