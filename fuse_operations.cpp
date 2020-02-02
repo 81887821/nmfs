@@ -145,15 +145,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             auto& metadata = file_info? *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh) : super_object.cache->open(path);
             auto lock = std::shared_lock(*metadata.mutex);
 
-            std::memset(stat, 0, sizeof(struct stat));
-            stat->st_nlink = metadata.link_count;
-            stat->st_mode = metadata.mode;
-            stat->st_uid = metadata.owner;
-            stat->st_gid = metadata.group;
-            stat->st_size = metadata.size;
-            stat->st_atim = metadata.atime;
-            stat->st_mtim = metadata.mtime;
-            stat->st_ctim = metadata.ctime;
+            *stat = metadata.to_stat();
             lock.unlock();
 
             if (!file_info) {
@@ -165,15 +157,7 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
             auto& metadata = directory.directory_metadata;
             auto lock = std::shared_lock(*metadata.mutex);
 
-            std::memset(stat, 0, sizeof(struct stat));
-            stat->st_nlink = metadata.link_count;
-            stat->st_mode = metadata.mode;
-            stat->st_uid = metadata.owner;
-            stat->st_gid = metadata.group;
-            stat->st_size = metadata.size;
-            stat->st_atim = metadata.atime;
-            stat->st_mtim = metadata.mtime;
-            stat->st_ctim = metadata.ctime;
+            *stat = metadata.to_stat();
             lock.unlock();
 
             super_object.cache->close_directory(path, directory);

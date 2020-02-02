@@ -50,6 +50,7 @@ public:
     virtual void reload() = 0;
     virtual void move_data(const slice& new_data_key_base) = 0;
     inline void remove();
+    constexpr struct stat to_stat() const;
 
 protected:
     inline void remove_data_objects(uint32_t index_from, uint32_t index_to);

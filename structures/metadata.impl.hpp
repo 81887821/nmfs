@@ -223,6 +223,22 @@ void metadata<indexing>::to_on_disk_metadata(on_disk::metadata& on_disk_metadata
     on_disk_metadata.ctime = ctime;
 }
 
+template<typename indexing>
+constexpr struct stat metadata<indexing>::to_stat() const {
+    struct stat stat{
+        .st_nlink = link_count,
+        .st_mode = mode,
+        .st_uid = owner,
+        .st_gid = group,
+        .st_size = static_cast<off_t>(size),
+        .st_atim = atime,
+        .st_mtim = mtime,
+        .st_ctim = ctime,
+    };
+    
+    return stat;
+}
+
 }
 
 #endif //NMFS_STRUCTURES_METADATA_IMPL_HPP

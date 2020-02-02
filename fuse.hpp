@@ -3,6 +3,7 @@
 
 #define FUSE_USE_VERSION 35
 #include <fuse.h>
+#include "structures/metadata.hpp"
 
 namespace nmfs {
 
@@ -19,7 +20,8 @@ public:
 
     constexpr fuse_directory_filler(void* buffer, fuse_fill_dir_t filler, fuse_readdir_flags flags);
 
-    constexpr int operator()(const char* name, const struct stat* stat) const;
+    template<typename indexing>
+    constexpr int operator()(const char* name, const nmfs::structures::metadata<indexing>& metadata) const;
     constexpr int operator()(const char* name) const;
 
 private:
@@ -33,8 +35,10 @@ constexpr fuse_directory_filler::fuse_directory_filler(void* buffer, fuse_fill_d
       filler(filler) {
 }
 
-constexpr int fuse_directory_filler::operator()(const char* name, const struct stat* stat) const {
-    return filler(buffer, name, stat, 0, FUSE_FILL_DIR_PLUS);
+template<typename indexing>
+constexpr int fuse_directory_filler::operator()(const char* name, const nmfs::structures::metadata<indexing>& metadata) const {
+    struct stat stat = metadata.to_stat();
+    return filler(buffer, name, &stat, 0, FUSE_FILL_DIR_PLUS);
 }
 
 constexpr int fuse_directory_filler::operator()(const char* name) const {
