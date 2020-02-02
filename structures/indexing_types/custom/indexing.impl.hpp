@@ -19,12 +19,11 @@ borrower_slice indexing::existing_directory_key(super_object<indexing>& context,
 owner_slice indexing::existing_regular_file_key(super_object<indexing>& context, std::string_view path) {
     std::string_view parent_path = get_parent_directory(path);
     std::string_view file_name = get_filename(path);
-    auto& parent_directory = context.cache->open_directory(parent_path);
-    auto& entry = parent_directory.get_entry(file_name);
+    auto open_context = context.cache->open_directory<std::shared_lock>(parent_path);
+    auto& entry = open_context.directory.get_entry(file_name);
     auto key = owner_slice(sizeof(uuid_t));
 
     std::copy(entry.uuid, entry.uuid + sizeof(uuid_t), key.data());
-    context.cache->close_directory(parent_path, parent_directory);
     return key;
 }
 
@@ -42,8 +41,8 @@ mode_t indexing::get_type(super_object<indexing>& context, std::string_view path
     } else {
         std::string_view parent_path = get_parent_directory(path);
         std::string_view file_name = get_filename(path);
-        auto& parent_directory = context.cache->open_directory(parent_path);
-        auto& entry = parent_directory.get_entry(file_name);
+        auto open_context = context.cache->open_directory<std::shared_lock>(parent_path);
+        auto& entry = open_context.directory.get_entry(file_name);
 
         return entry.type;
     }

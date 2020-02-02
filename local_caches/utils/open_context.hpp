@@ -27,7 +27,7 @@ template<typename indexing, template<typename> typename lock_type>
 constexpr open_context<indexing, lock_type>::open_context(std::string_view path, nmfs::structures::metadata<indexing>& metadata)
     : path(path),
       metadata(metadata),
-      lock(metadata.mutex) {
+      lock(*metadata.mutex) {
     metadata.open_count++;
 }
 

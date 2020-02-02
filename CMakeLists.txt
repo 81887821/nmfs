@@ -74,6 +74,9 @@ add_executable(nmfs
         structures/indexing_types/full_path/metadata.impl.hpp
         structures/indexing_types/full_path/directory_entry.hpp
         structures/indexing_types/full_path/directory_entry.impl.hpp
+        local_caches/utils/open_context.hpp
+        local_caches/utils/directory_open_context.hpp
+        local_caches/utils/no_lock.hpp
         )
 target_link_libraries(nmfs ${FUSE3_LIBRARIES} ${UUID_LIBRARIES} rados)
 target_include_directories(nmfs PUBLIC ${FUSE3_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS})

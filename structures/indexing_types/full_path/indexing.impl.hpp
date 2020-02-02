@@ -27,9 +27,8 @@ borrower_slice indexing::new_regular_file_key(super_object<indexing>& context, s
 }
 
 mode_t indexing::get_type(super_object<indexing>& context, std::string_view path) {
-    auto& metadata = context.cache->open(path);
-    mode_t mode = metadata.mode;
-    context.cache->close(path, metadata);
+    auto open_context = context.cache->open<std::shared_lock>(path);
+    mode_t mode = open_context.metadata.mode;
 
     return mode;
 }

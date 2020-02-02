@@ -61,7 +61,6 @@ template<typename indexing>
 inline void directory<indexing>::add_file(std::string_view file_name, const metadata<indexing>& metadata) {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
 
-    auto lock = std::unique_lock(*mutex);
     auto content = directory_entry_type(std::string(file_name), metadata);
 
     auto result = files.emplace(std::move(content));
@@ -77,7 +76,6 @@ template<typename indexing>
 inline void directory<indexing>::remove_file(std::string_view file_name) {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "(file_name = " << file_name << ")\n";
 
-    auto lock = std::unique_lock(*mutex);
     auto iterator = std::find_if(files.begin(), files.end(), directory_entry_type::find_by_name(file_name));
 
     if (iterator != files.end()) {
@@ -92,7 +90,6 @@ inline void directory<indexing>::remove_file(std::string_view file_name) {
 template<typename indexing>
 inline void directory<indexing>::flush() const {
     log::information(log_locations::directory_operation) << std::hex << std::showbase << "(" << &directory_metadata << ") " << __func__ << "()\n";
-    auto lock = std::shared_lock(*mutex);
 
     if (dirty) {
         if (size < directory_metadata.size) {
@@ -139,8 +136,6 @@ inline void directory<indexing>::parse(std::unique_ptr<byte[]> buffer) {
 
 template<typename indexing>
 void directory<indexing>::fill_buffer(const fuse_directory_filler& filler) {
-    auto lock = std::shared_lock(*mutex);
-
     for (const auto& content: files) {
         content.fill(filler);
     }
@@ -168,7 +163,6 @@ void directory<indexing>::remove() {
 
 template<typename indexing>
 const typename directory<indexing>::directory_entry_type& directory<indexing>::get_entry(std::string_view file_name) const {
-    auto lock = std::shared_lock(*mutex);
     auto iterator = std::find_if(files.begin(), files.end(), directory_entry_type::find_by_name(file_name));
 
     if (iterator != files.end()) {

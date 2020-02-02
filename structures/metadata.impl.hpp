@@ -101,12 +101,10 @@ ssize_t metadata<indexing>::write(const byte* buffer, size_t size_to_write, off_
     size_t remain_size_to_write = size_to_write;
 
     if (offset + size_to_write > size) {
-        auto lock = std::unique_lock(*mutex);
         size = offset + size_to_write;
         dirty = true;
     }
 
-    auto lock = std::shared_lock(*mutex);
     while (remain_size_to_write > 0) {
         size_t size_to_write_in_object = std::min<size_t>(remain_size_in_object, remain_size_to_write);
         DECLARE_CONST_BORROWER_SLICE(value, buffer, size_to_write_in_object);
@@ -129,7 +127,6 @@ ssize_t metadata<indexing>::read(byte* buffer, size_t size_to_read, off_t offset
     auto data_key = nmfs::structures::utils::data_object_key(key, static_cast<uint32_t>(offset / context.maximum_object_size));
     auto offset_in_object = static_cast<uint32_t>(offset % context.maximum_object_size);
     uint32_t remain_size_in_object = context.maximum_object_size - offset_in_object;
-    auto lock = std::shared_lock(*mutex);
 
     if (size_to_read + offset > size) {
         size_to_read = size - offset;
@@ -167,8 +164,6 @@ template<typename indexing>
 void metadata<indexing>::truncate(off_t new_size) {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "(new_size = " << new_size << ")\n";
 
-    auto lock = std::unique_lock(*mutex);
-
     if (new_size != size) {
         if (new_size < size) {
             auto first_index = static_cast<uint32_t>(new_size / context.maximum_object_size + new_size % context.maximum_object_size? 1 : 0);
@@ -184,7 +179,6 @@ void metadata<indexing>::truncate(off_t new_size) {
 template<typename indexing>
 void metadata<indexing>::remove_data_objects(uint32_t index_from, uint32_t index_to) {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << __func__ << "(index_from = " << index_from << ", index_to = " << index_to << ")\n";
-    /* Assume mutex is exclusively locked */
     auto data_key = nmfs::structures::utils::data_object_key(key, index_from);
     for (uint32_t i = index_from; i <= index_to; i++) {
         data_key.update_index(i);
@@ -204,7 +198,6 @@ void metadata<indexing>::reload() {
 template<typename indexing>
 void metadata<indexing>::remove() {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "()\n";
-    auto lock = std::unique_lock(*mutex);
 
     remove_data_objects(0, size / context.maximum_object_size);
     context.backend->remove(key);

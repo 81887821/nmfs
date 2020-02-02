@@ -25,6 +25,8 @@ public:
 
     explicit inline directory(metadata<indexing>& metadata);
     inline directory(directory&& other, std::string_view old_directory_path, std::string_view new_directory_path);
+    directory(const directory&) = delete;
+    directory(directory&&) noexcept = default;
     inline ~directory();
 
     inline void add_file(std::string_view file_name, const metadata<indexing>& metadata);

@@ -10,6 +10,7 @@ public:
     metadata(super_object<indexing>& super, owner_slice key, uid_t owner, gid_t group, mode_t mode);
     metadata(super_object<indexing>& super, owner_slice key, const on_disk::metadata* on_disk_data);
     metadata(metadata&& other, owner_slice key);
+    metadata(metadata&& other) noexcept = default;
     ~metadata() override;
 
     void flush() const override;

@@ -20,6 +20,7 @@
 #include "structures/directory.impl.hpp"
 #include "structures/metadata.impl.hpp"
 #include "structures/super_object.impl.hpp"
+#include "local_caches/utils/no_lock.hpp"
 
 using namespace nmfs;
 using indexing = configuration::indexing;
@@ -39,10 +40,10 @@ void* nmfs::fuse_operations::init(struct fuse_conn_info* info, struct fuse_confi
 
     // open root metadata
     try {
-        auto& root_directory = super_object->cache->open_directory(root_path);
+        auto& root_directory = super_object->cache->open_directory<no_lock>(root_path).unlock_and_release_directory();
     } catch (nmfs::exceptions::file_does_not_exist&) {
         fuse_context* fuse_context = fuse_get_context();
-        auto& root_directory = super_object->cache->create_directory(root_path, fuse_context->uid, fuse_context->gid, 0755 | S_IFDIR);
+        auto& root_directory = super_object->cache->create_directory<no_lock>(root_path, fuse_context->uid, fuse_context->gid, 0755 | S_IFDIR).unlock_and_release_directory();
     }
 
     // set fuse_context->private_data to super_object instance
@@ -81,7 +82,8 @@ int nmfs::fuse_operations::fsync(const char* path, int data_sync, struct fuse_fi
 
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *static_cast<structures::super_object<indexing>*>(fuse_context->private_data);
-    auto& metadata = super_object.cache->open(path);
+    auto open_context = super_object.cache->open<std::unique_lock>(path);
+    auto& metadata = open_context.metadata;
 
     // If the datasync parameter is non-zero, then only the user data should be flushed, not the meta data.
 
@@ -109,19 +111,19 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
     auto& super_object = *static_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        structures::metadata<indexing>& metadata = super_object.cache->create(path, fuse_context->uid, fuse_context->gid, mode | S_IFREG);
-        file_info->fh = reinterpret_cast<uint64_t>(&metadata);
+        auto open_context = super_object.cache->create<std::unique_lock>(path, fuse_context->uid, fuse_context->gid, mode | S_IFREG);
 
         // add to directory
         std::string_view parent_path = get_parent_directory(path);
         std::string_view file_name = get_filename(path);
 
-        auto& parent_directory = super_object.cache->open_directory(parent_path);
-        parent_directory.add_file(file_name, metadata);
+        auto parent_open_context = super_object.cache->open_directory<std::unique_lock>(parent_path);
+        auto& parent_directory = parent_open_context.directory;
+        parent_directory.add_file(file_name, open_context.metadata);
 
         parent_directory.flush();
-        super_object.cache->close_directory(parent_path, parent_directory);
         // Create performs "create and open a file", so we don't close metadata here
+        file_info->fh = reinterpret_cast<uint64_t>(&open_context.unlock_and_release());
         return 0;
     } catch (nmfs::exceptions::nmfs_exception& e) {
         log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
@@ -142,25 +144,21 @@ int nmfs::fuse_operations::getattr(const char* path, struct stat* stat, struct f
         mode_t type = file_info? S_IFREG : indexing::get_type(super_object, path);
 
         if (S_ISREG(type)) {
-            auto& metadata = file_info? *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh) : super_object.cache->open(path);
-            auto lock = std::shared_lock(*metadata.mutex);
+            auto open_context = file_info? nmfs::open_context<indexing, std::shared_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh)) : super_object.cache->open<std::shared_lock>(path);
+            auto& metadata = open_context.metadata;
 
             *stat = metadata.to_stat();
-            lock.unlock();
 
-            if (!file_info) {
-                super_object.cache->close(path, metadata);
+            if (file_info) {
+                open_context.unlock_and_release();
             }
         } else if (S_ISDIR(type)) {
             // if directory
-            auto& directory = super_object.cache->open_directory(path);
+            auto open_context = super_object.cache->open_directory<std::shared_lock>(path);
+            auto& directory = open_context.directory;
             auto& metadata = directory.directory_metadata;
-            auto lock = std::shared_lock(*metadata.mutex);
 
             *stat = metadata.to_stat();
-            lock.unlock();
-
-            super_object.cache->close_directory(path, directory);
         } else {
             log::error(log_locations::fuse_operation) << std::showbase << __func__ << " failed: Unsupported file type " << std::hex << type << '\n';
             return -EFAULT;
@@ -184,7 +182,7 @@ int nmfs::fuse_operations::open(const char* path, struct fuse_file_info* file_in
     auto& super_object = *static_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        structures::metadata<indexing>& metadata = super_object.cache->open(path);
+        structures::metadata<indexing>& metadata = super_object.cache->open<no_lock>(path).unlock_and_release();
         file_info->fh = reinterpret_cast<uint64_t>(&metadata);
         log::information(log_locations::fuse_operation) << std::hex << std::showbase << __func__ << ": " << path << " = " << &metadata << '\n';
 
@@ -206,19 +204,18 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
     auto& super_object = *static_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& new_directory = super_object.cache->create_directory(path, fuse_context->uid, fuse_context->gid, mode | S_IFDIR);
+        auto new_directory_open_context = super_object.cache->create_directory<std::unique_lock>(path, fuse_context->uid, fuse_context->gid, mode | S_IFDIR);
+        auto& new_directory = new_directory_open_context.directory;
 
         // add to parent directory
         std::string_view parent_path = get_parent_directory(path);
         std::string_view new_directory_name = get_filename(path);
 
-        auto& parent_directory = super_object.cache->open_directory(parent_path);
+        auto parent_open_context = super_object.cache->open_directory<std::unique_lock>(parent_path);
+        auto& parent_directory = parent_open_context.directory;
         parent_directory.add_file(new_directory_name, new_directory.directory_metadata);
 
         parent_directory.flush();
-        super_object.cache->close_directory(parent_path, parent_directory);
-        super_object.cache->close_directory(path, new_directory);
-
         return 0;
     } catch (nmfs::exceptions::nmfs_exception& e) {
         log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
@@ -237,19 +234,19 @@ int nmfs::fuse_operations::rmdir(const char* path) {
     auto& super_object = *static_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& directory = super_object.cache->open_directory(path);
+        auto open_context = super_object.cache->open_directory<std::unique_lock>(path);
+        auto& directory = open_context.directory;
 
         if (directory.number_of_files() > 0) {
-            super_object.cache->close_directory(path, directory);
             return -ENOTEMPTY;
         } else {
             std::string_view parent_path = get_parent_directory(path);
-            auto& parent_directory = super_object.cache->open_directory(parent_path);
+            auto parent_open_context = super_object.cache->open_directory<std::unique_lock>(parent_path);
+            auto& parent_directory = parent_open_context.directory;
 
             parent_directory.remove_file(get_filename(path));
-            super_object.cache->close_directory(parent_path, parent_directory);
 
-            super_object.cache->remove_directory(path, directory);
+            super_object.cache->remove_directory(std::move(open_context));
             return 0;
         }
     } catch (nmfs::exceptions::nmfs_exception& e) {
@@ -270,15 +267,16 @@ int nmfs::fuse_operations::write(const char* path, const char* buffer, size_t si
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh) : super_object.cache->open(path);
+        auto open_context = file_info? nmfs::open_context<indexing, std::unique_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh)) : super_object.cache->open<std::unique_lock>(path);
+        auto& metadata = open_context.metadata;
         if (!S_ISREG(metadata.mode)) {
             return -EBADF;
         }
 
         written_size = metadata.write(buffer, size, offset);
 
-        if (!file_info) {
-            super_object.cache->close(path, metadata);
+        if (file_info) {
+            open_context.unlock_and_release();
         }
 
         // should return exactly the number of bytes requested except on error.
@@ -309,15 +307,15 @@ int nmfs::fuse_operations::unlink(const char* path) {
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& metadata = super_object.cache->open(path);
+        auto open_context = super_object.cache->open<std::unique_lock>(path);
+        auto& metadata = open_context.metadata;
 
         std::string_view parent_path = get_parent_directory(path);
-        auto& parent_directory = super_object.cache->open_directory(parent_path);
+        auto parent_open_context = super_object.cache->open_directory<std::unique_lock>(parent_path);
+        auto& parent_directory = parent_open_context.directory;
 
         parent_directory.remove_file(get_filename(path));
-        super_object.cache->close_directory(parent_path, parent_directory);
-
-        super_object.cache->remove(path, metadata);
+        super_object.cache->remove(std::move(open_context));
 
         return 0;
     } catch (nmfs::exceptions::nmfs_exception& e) {
@@ -356,10 +354,11 @@ int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, un
         } else if (S_ISDIR(type)) {
             if (target_exist) {
                 if (S_ISDIR(target_type)) {
-                    auto& target_directory = super_object.cache->open_directory(new_path);
+                    auto target_open_context = super_object.cache->open_directory<std::unique_lock>(new_path);
+                    auto& target_directory = target_open_context.directory;
 
                     if (target_directory.empty()) {
-                        super_object.cache->remove_directory(new_path, target_directory);
+                        super_object.cache->remove_directory(std::move(target_open_context));
                         /* Proceeds to moving directory */
                     } else {
                         return -ENOTEMPTY;
@@ -374,8 +373,8 @@ int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, un
         } else if (S_ISREG(type)) {
             if (target_exist) {
                 if (!S_ISDIR(target_type)) {
-                    auto& target = super_object.cache->open(new_path);
-                    super_object.cache->remove(new_path, target);
+                    auto target_open_context = super_object.cache->open<std::unique_lock>(new_path);
+                    super_object.cache->remove(std::move(target_open_context));
                     /* Proceeds to moving regular file */
                 } else {
                     return -EISDIR;
@@ -391,13 +390,12 @@ int nmfs::fuse_operations::rename(const char* old_path, const char* new_path, un
         /* Directory management */
         std::string_view old_parent_path = get_parent_directory(old_path);
         std::string_view new_parent_path = get_parent_directory(new_path);
-        auto& old_parent_directory = super_object.cache->open_directory(old_parent_path);
-        auto& new_parent_directory = super_object.cache->open_directory(new_parent_path);
+        auto old_parent_open_context = super_object.cache->open_directory<std::unique_lock>(old_parent_path);
+        auto& old_parent_directory = old_parent_open_context.directory;
+        auto new_parent_open_context = super_object.cache->open_directory<std::unique_lock>(new_parent_path);
+        auto& new_parent_directory = new_parent_open_context.directory;
 
         old_parent_directory.move_entry(old_path, new_path, new_parent_directory);
-
-        super_object.cache->close_directory(new_parent_path, new_parent_directory);
-        super_object.cache->close_directory(old_parent_path, old_parent_directory);
 
         return 0;
     } catch (nmfs::exceptions::nmfs_exception& e) {
@@ -417,16 +415,15 @@ int nmfs::fuse_operations::chmod(const char* path, mode_t mode, struct fuse_file
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh) : super_object.cache->open(path);
-        auto lock = std::unique_lock(*metadata.mutex);
+        auto open_context = file_info? nmfs::open_context<indexing, std::unique_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh)) : super_object.cache->open<std::unique_lock>(path);
+        auto& metadata = open_context.metadata;
 
         mode_t file_type = mode & S_IFMT;
         metadata.mode = mode | file_type;
         metadata.dirty = true;
 
-        if (!file_info) {
-            lock.unlock();
-            super_object.cache->close(path, metadata);
+        if (file_info) {
+            open_context.unlock_and_release();
         }
 
         return 0;
@@ -447,14 +444,15 @@ int nmfs::fuse_operations::chown(const char* path, uid_t uid, gid_t gid, struct 
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh) : super_object.cache->open(path);
+        auto open_context = file_info? nmfs::open_context<indexing, std::unique_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh)) : super_object.cache->open<std::unique_lock>(path);
+        auto& metadata = open_context.metadata;
 
         metadata.owner = uid;
         metadata.group = gid;
         metadata.dirty = true;
 
-        if (!file_info) {
-            super_object.cache->close(path, metadata);
+        if (file_info) {
+            open_context.unlock_and_release();
         }
 
         return 0;
@@ -474,8 +472,15 @@ int nmfs::fuse_operations::truncate(const char* path, off_t length, struct fuse_
     fuse_context* fuse_context = fuse_get_context();
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh) : super_object.cache->open(path);
+        auto open_context = file_info? nmfs::open_context<indexing, std::unique_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh)) : super_object.cache->open<std::unique_lock>(path);
+        auto& metadata = open_context.metadata;
+
         metadata.truncate(length);
+
+        if (file_info) {
+            open_context.unlock_and_release();
+        }
+
         return 0;
     } catch (nmfs::exceptions::nmfs_exception& e) {
         log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
@@ -496,11 +501,12 @@ int nmfs::fuse_operations::read(const char* path, char* buffer, size_t size, off
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& metadata = file_info? *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh) : super_object.cache->open(path);
+        auto open_context = file_info? nmfs::open_context<indexing, std::shared_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh)) : super_object.cache->open<std::shared_lock>(path);
+        auto& metadata = open_context.metadata;
         read_size = metadata.read(buffer, size, offset);
 
-        if (!file_info) {
-            super_object.cache->close(path, metadata);
+        if (file_info) {
+            open_context.unlock_and_release();
         }
 
         //should return exactly the number of bytes requested except on EOF or error, otherwise the rest of the data will be substituted with zeroes.
@@ -524,7 +530,7 @@ int nmfs::fuse_operations::opendir(const char* path, struct fuse_file_info* file
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& directory = super_object.cache->open_directory(path);
+        auto& directory = super_object.cache->open_directory<no_lock>(path).unlock_and_release_directory();
 
         file_info->fh = reinterpret_cast<uint64_t>(&directory);
 
@@ -546,15 +552,16 @@ int nmfs::fuse_operations::readdir(const char* path, void* buffer, fuse_fill_dir
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     try {
-        auto& directory = file_info? *reinterpret_cast<structures::directory<indexing>*>(file_info->fh) : super_object.cache->open_directory(path);
+        auto open_context = file_info? directory_open_context<indexing, std::shared_lock>(path, *reinterpret_cast<structures::directory<indexing>*>(file_info->fh)) : super_object.cache->open_directory<std::shared_lock>(path);
+        auto& directory = open_context.directory;
 
         filler(buffer, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
         filler(buffer, "..", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
 
         directory.fill_buffer(fuse_directory_filler(buffer, filler, readdir_flags));
 
-        if (!file_info) {
-            super_object.cache->close_directory(path, directory);
+        if (file_info) {
+            open_context.unlock_and_release_directory();
         }
 
         return 0;
@@ -582,8 +589,8 @@ int nmfs::fuse_operations::release(const char* path, struct fuse_file_info* file
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     if (file_info) {
-        auto& metadata = *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh);
-        super_object.cache->close(path, metadata);
+        auto open_context = nmfs::open_context<indexing, no_lock>(path, *reinterpret_cast<structures::metadata<indexing>*>(file_info->fh));
+        super_object.cache->close(std::move(open_context));
     }
 
     return 0;
@@ -597,8 +604,8 @@ int nmfs::fuse_operations::releasedir(const char* path, struct fuse_file_info* f
     auto& super_object = *reinterpret_cast<structures::super_object<indexing>*>(fuse_context->private_data);
 
     if (file_info) {
-        auto& directory = *reinterpret_cast<structures::directory<indexing>*>(file_info->fh);
-        super_object.cache->close_directory(path, directory);
+        auto open_context = nmfs::directory_open_context<indexing, no_lock>(path, *reinterpret_cast<structures::directory<indexing>*>(file_info->fh));
+        super_object.cache->close_directory(std::move(open_context));
     }
 
     return 0;
