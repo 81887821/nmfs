@@ -169,7 +169,7 @@ directory_open_context<indexing, lock_type> cache_store<indexing, caching_policy
             return directory_open_context<indexing, lock_type>(path, directory);
         } else {
             // Drop directory cache and reopen
-            auto directory_unique_lock = std::unique_lock(directory_cache_mutex, std::defer_lock);
+            auto directory_unique_lock = std::unique_lock(directory_cache_mutex);
             directory_cache.erase(iterator);
         }
     }
@@ -179,7 +179,7 @@ directory_open_context<indexing, lock_type> cache_store<indexing, caching_policy
     auto metadata_iterator = open(path, key_generator);
     metadata<indexing>& directory_metadata = metadata_iterator->second;
 
-    auto directory_unique_lock = std::unique_lock(directory_cache_mutex, std::defer_lock);
+    auto directory_unique_lock = std::unique_lock(directory_cache_mutex);
     auto emplace_result = directory_cache.emplace(
         std::string(path),
         directory_metadata
