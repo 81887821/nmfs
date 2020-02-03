@@ -12,22 +12,22 @@ using namespace nmfs::structures;
 
 template<typename indexing, int seconds>
 bool hold_closed_cache_for<indexing, seconds>::is_valid(super_object<indexing>& context, metadata<indexing>& cache) {
-    return cache.open_count > 0 || cache.last_close <= std::chrono::system_clock::now() + valid_duration;
+    return cache.open_count > 0 || cache.last_close + valid_duration >= std::chrono::system_clock::now();
 }
 
 template<typename indexing, int seconds>
 bool hold_closed_cache_for<indexing, seconds>::keep_cache(super_object<indexing>& context, metadata<indexing>& cache) {
-    return cache.open_count > 0 || cache.last_close <= std::chrono::system_clock::now() + valid_duration;
+    return cache.open_count > 0 || cache.last_close + valid_duration >= std::chrono::system_clock::now();
 }
 
 template<typename indexing, int seconds>
 bool hold_closed_cache_for<indexing, seconds>::is_valid(super_object<indexing>& context, directory<indexing>& cache) {
-    return cache.directory_metadata.open_count > 0 || cache.directory_metadata.last_close <= std::chrono::system_clock::now() + valid_duration;
+    return cache.directory_metadata.open_count > 0 || cache.directory_metadata.last_close + valid_duration >= std::chrono::system_clock::now();
 }
 
 template<typename indexing, int seconds>
 bool hold_closed_cache_for<indexing, seconds>::keep_cache(super_object<indexing>& context, directory<indexing>& cache) {
-    return cache.directory_metadata.open_count > 0 || cache.directory_metadata.last_close <= std::chrono::system_clock::now() + valid_duration;
+    return cache.directory_metadata.open_count > 0 || cache.directory_metadata.last_close + valid_duration >= std::chrono::system_clock::now();
 }
 
 }
