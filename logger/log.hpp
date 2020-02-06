@@ -9,6 +9,7 @@
 #include "log_levels.hpp"
 #include "log_locations.hpp"
 #include "log_stream.hpp"
+#include "no_log_stream.hpp"
 
 namespace nmfs {
 
@@ -20,40 +21,50 @@ public:
         static constexpr auto log_location = log_locations::all;
     };
 
-    inline static log_stream information(log_locations log_location);
-    inline static log_stream debug(log_locations log_location);
-    inline static log_stream warning(log_locations log_location);
-    inline static log_stream error(log_locations log_location);
+#ifdef DEBUG
+    using log_stream_type = log_stream;
+#else
+    using log_stream_type = no_log_stream;
+#endif
 
-    inline static log_stream write_log(log_levels level, log_locations location);
+    inline static log_stream_type information(log_locations log_location);
+    inline static log_stream_type debug(log_locations log_location);
+    inline static log_stream_type warning(log_locations log_location);
+    inline static log_stream_type error(log_locations log_location);
+
+    inline static log_stream_type write_log(log_levels level, log_locations location);
 
 private:
     inline static bool logging_needed(log_levels level, log_locations location);
 };
 
-inline log_stream log::information(log_locations log_location) {
+inline log::log_stream_type log::information(log_locations log_location) {
     return write_log(log_levels::information, log_location);
 }
 
-inline log_stream log::debug(log_locations log_location) {
+inline log::log_stream_type log::debug(log_locations log_location) {
     return write_log(log_levels::debug, log_location);
 }
 
-inline log_stream log::warning(log_locations log_location) {
+inline log::log_stream_type log::warning(log_locations log_location) {
     return write_log(log_levels::warning, log_location);
 }
 
-inline log_stream log::error(log_locations log_location) {
+inline log::log_stream_type log::error(log_locations log_location) {
     return write_log(log_levels::error, log_location);
 }
 
-inline log_stream log::write_log(log_levels level, log_locations location) {
+inline log::log_stream_type log::write_log(log_levels level, log_locations location) {
+#ifdef DEBUG
     if (logging_needed(level, location)) {
         std::ostream& logging_backend = std::cerr;
         return log_stream(logging_backend, level, location);
     } else {
         return log_stream();
     }
+#else
+    return no_log_stream();
+#endif
 }
 
 inline bool log::logging_needed(log_levels level, log_locations location) {

@@ -64,6 +64,7 @@ add_executable(nmfs
         logger/log_locations.hpp
         logger/log_levels.hpp
         logger/log_stream.hpp
+        logger/no_log_stream.hpp
         logger/write_bytes.hpp
         structures/indexing_types/custom/metadata.hpp
         structures/indexing_types/custom/metadata.impl.hpp
