@@ -19,6 +19,7 @@ public:
     ~rados_backend() override;
 
     [[nodiscard]] owner_slice get(const slice& key) final;
+    [[nodiscard]] virtual owner_slice get(const slice& key, size_t length, off_t offset) final;
     ssize_t get(const slice& key, slice& value) final; // fully read
     ssize_t get(const slice& key, off_t offset, size_t length, slice& value) final; // partial read
 

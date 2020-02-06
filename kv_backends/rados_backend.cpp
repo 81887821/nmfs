@@ -85,6 +85,24 @@ nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key) 
     return slice;
 }
 
+nmfs::owner_slice nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, size_t length, off_t offset) {
+    auto slice = owner_slice(length);
+    auto buffer_list = librados::bufferlist::static_from_mem(slice.data(), slice.capacity());
+
+    int ret = io_ctx.read(key.to_string(), buffer_list, length, offset);
+    if (ret >= 0) {
+        log::information(log_locations::kv_backend_operation)
+            << "rados_backend::get : partial read(key = " << key.to_string_view() << ", length = " << length << ", offset = " << offset << ") = " << ret << "\n";
+    } else if (ret == -ENOENT) {
+        throw key_does_not_exist(key);
+    } else {
+        throw generic_kv_api_failure("rados_backend::get : read failed (key = " + key.to_string() + ')', ret);
+    }
+
+    slice.set_size(ret);
+    return slice;
+}
+
 ssize_t nmfs::kv_backends::rados_backend::get(const nmfs::slice& key, nmfs::slice& value) { // fully read
     uint64_t object_size;
     time_t object_mtime;

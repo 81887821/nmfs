@@ -8,6 +8,7 @@
 #include "directory_entry.hpp"
 #include "metadata.hpp"
 #include "../../../local_caches/cache_store.hpp"
+#include "../../on_disk/metadata.hpp"
 
 namespace nmfs::structures::indexing_types::full_path {
 
@@ -15,6 +16,7 @@ class indexing {
 public:
     using directory_entry_type = nmfs::structures::indexing_types::full_path::directory_entry;
     using metadata_type = nmfs::structures::indexing_types::full_path::metadata;
+    using on_disk_metadata_type = nmfs::structures::on_disk::metadata;
 
     static inline borrower_slice existing_directory_key(super_object<indexing>& context, std::string_view path);
     static inline borrower_slice existing_regular_file_key(super_object<indexing>& context, std::string_view path);

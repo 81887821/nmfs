@@ -289,7 +289,7 @@ typename std::map<std::string, typename cache_store<indexing, caching_policy>::m
     } else {
         slice_type key = key_generator(context, path);
         try {
-            owner_slice value = context.backend->get(key);
+            owner_slice value = context.backend->get(key, sizeof(typename indexing::on_disk_metadata_type));
             auto on_disk_metadata = reinterpret_cast<on_disk::metadata*>(value.data());
 
             auto cache_unique_lock = std::unique_lock(cache_mutex);

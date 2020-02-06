@@ -11,6 +11,7 @@ public:
     virtual ~kv_backend() = default;
 
     [[nodiscard]] virtual owner_slice get(const slice& key) = 0;
+    [[nodiscard]] virtual owner_slice get(const slice& key, size_t length, off_t offset = 0) = 0;
     virtual ssize_t get(const slice& key, slice& value) = 0;
     virtual ssize_t get(const slice& key, off_t offset, size_t length, slice& value) = 0;
 
