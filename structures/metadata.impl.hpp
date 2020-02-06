@@ -228,7 +228,9 @@ void metadata<indexing>::remove() {
     log::information(log_locations::file_data_operation) << std::showbase << std::hex << "(" << this << ") " << __func__ << "()\n";
 
     if (valid) {
-        remove_data_objects(0, size / context.maximum_object_size);
+        if (size > 0) {
+            remove_data_objects(0, size / context.maximum_object_size);
+        }
         context.backend->remove(key);
     }
     dirty = false;
