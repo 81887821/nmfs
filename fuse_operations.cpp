@@ -121,7 +121,6 @@ int nmfs::fuse_operations::create(const char* path, mode_t mode, struct fuse_fil
         auto& parent_directory = parent_open_context.directory;
         parent_directory.add_file(file_name, open_context.metadata);
 
-        parent_directory.flush();
         // Create performs "create and open a file", so we don't close metadata here
         file_info->fh = reinterpret_cast<uint64_t>(&open_context.unlock_and_release());
         return 0;
@@ -215,7 +214,6 @@ int nmfs::fuse_operations::mkdir(const char* path, mode_t mode) {
         auto& parent_directory = parent_open_context.directory;
         parent_directory.add_file(new_directory_name, new_directory.directory_metadata);
 
-        parent_directory.flush();
         return 0;
     } catch (nmfs::exceptions::nmfs_exception& e) {
         log::debug(log_locations::fuse_operation) << __func__ << " failed: " << e.what() << '\n';
